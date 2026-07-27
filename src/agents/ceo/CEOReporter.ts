@@ -7,17 +7,22 @@ export class CEOReporter {
   private approvalManager = ApprovalManager.getInstance();
 
   public async publishReport(report: CEOExecutiveReport): Promise<void> {
-    // 1. Store Executive Report into Long-Term Memory System
+    const plan = report.strategicPlan;
+    const goals = plan?.strategicGoals?.map((g) => g.title).join('; ') || '';
+    const impact = report.estimatedImpact || plan?.estimatedImpact || '';
+    const employees = (report.recommendedEmployees || plan?.recommendedEmployees || []).join(', ');
+
+    // 1. Store Strategic Plan / Executive Report into Long-Term Memory System
     this.memoryManager.createMemoryItem({
-      title: `CEO Executive Audit Report (${report.website})`,
+      title: `CEO Strategic Plan (${report.website})`,
       description: report.executiveSummary.substring(0, 140) + '...',
-      content: `Executive Summary: ${report.executiveSummary}\nOverall Health Score: ${report.healthScores.overall}/100\nSEO Score: ${report.healthScores.seo}/100\nSecurity Score: ${report.healthScores.security}/100\nTop Priorities: ${report.recommendedPriorities.join('; ')}`,
+      content: `Executive Summary: ${report.executiveSummary}\nBusiness Health: ${report.healthScores.overall}/100\nSEO: ${report.healthScores.seo}/100\nSecurity: ${report.healthScores.security}/100\nGoals: ${goals}\nTop Priorities: ${report.recommendedPriorities.join('; ')}\nEstimated Impact: ${impact}\nRecommended Employees: ${employees}\nImmediate Actions: ${(report.immediateActions || report.actionPlan).join('; ')}\nLong-term: ${(report.longTermStrategy || []).join('; ')}`,
       type: 'Project Memory',
       category: 'Reports',
       priority: 'High',
       visibility: 'Global',
       website: report.website,
-      tags: ['CEO Report', 'Executive Audit', 'Health Score', 'Tasks'],
+      tags: ['CEO Report', 'Strategic Plan', 'Executive Summary', 'Roadmap', 'Tasks'],
       source: 'CEO Executive Agent'
     });
 

@@ -1,3 +1,5 @@
+import type { StrategicPlan } from './planning/planTypes';
+
 export interface HealthScores {
   overall: number;
   website: number;
@@ -14,13 +16,15 @@ export interface CEOTaskRecommendation {
   title: string;
   description: string;
   priority: 'Low' | 'Medium' | 'High' | 'Critical';
-  category: 'SEO' | 'Security' | 'Performance' | 'Content' | 'UX' | 'Architecture';
-  estimatedImpact: 'High' | 'Medium' | 'Low';
+  category: 'SEO' | 'Security' | 'Performance' | 'Content' | 'UX' | 'Architecture' | 'Growth';
+  estimatedImpact: 'High' | 'Medium' | 'Low' | string;
   estimatedDifficulty: 'Easy' | 'Moderate' | 'Hard';
   suggestedAgent: string;
   reason: string;
   status: 'Pending Approval' | 'Approved' | 'Rejected';
   approvalRequired: boolean;
+  taskEngineId?: string;
+  horizon?: string;
 }
 
 export interface CEORiskItem {
@@ -57,12 +61,24 @@ export interface CEOExecutiveReport {
   actionPlan: string[];
   confidenceScore: number;
   tasks: CEOTaskRecommendation[];
+  /** Full strategic plan from CEO planning brain (plan-only). */
+  strategicPlan?: StrategicPlan;
+  recommendedEmployees?: string[];
+  estimatedImpact?: string;
+  longTermStrategy?: string[];
+  immediateActions?: string[];
 }
 
 export interface CEOContextData {
   websiteDomain: string;
-  scannerData?: any;
-  memoryItems?: any[];
+  websiteId?: string;
+  scannerData?: Record<string, unknown>;
+  websiteIntelligence?: Record<string, unknown>;
+  memoryItems?: Array<{ title: string; snippet: string; category?: string }>;
   previousReports?: CEOExecutiveReport[];
-  workflowHistory?: any[];
+  workflowHistory?: Array<{ id: string; name: string; status?: string }>;
+  businessGoals?: string[];
+  completedTasks?: Array<{ id: string; title: string; category?: string }>;
+  failedTasks?: Array<{ id: string; title: string; category?: string }>;
+  openTasks?: Array<{ id: string; title: string; status?: string }>;
 }

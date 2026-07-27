@@ -8,113 +8,67 @@ import { RiskPanel } from './RiskPanel';
 import { OpportunityPanel } from './OpportunityPanel';
 import { DecisionPanel } from './DecisionPanel';
 import { AnalysisTimeline } from './AnalysisTimeline';
+import { StrategicPlanningPanel } from './StrategicPlanningPanel';
 import { useApp } from '../../../context/AppContext';
-import { 
-  Play, 
-  Award, 
-  ShieldCheck, 
-  CheckSquare, 
-  Activity, 
-  BarChart3, 
+import {
+  Play,
+  ShieldCheck,
+  CheckSquare,
+  Activity,
+  BarChart3,
   FileText,
-  Clock,
-  Sparkles
+  Sparkles,
+  Map,
 } from 'lucide-react';
 
 export const CEODashboard: React.FC = () => {
-  const { setActiveTab, showToast } = useApp();
+  const { setActiveTab, showToast, websites, selectedWebsiteId } = useApp();
   const ceoAgent = CEOAgent.getInstance();
-  const [report, setReport] = useState<CEOExecutiveReport | null>(() => ceoAgent.history.getLatestReport() || null);
+  const [report, setReport] = useState<CEOExecutiveReport | null>(
+    () => ceoAgent.history.getLatestReport() || null
+  );
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'report' | 'tasks' | 'risks' | 'timeline'>('overview');
+  const [activeSubTab, setActiveSubTab] = useState<
+    'overview' | 'strategy' | 'report' | 'tasks' | 'risks' | 'timeline'
+  >('overview');
+
+  const resolveDomain = () => {
+    const selected = websites.find((w) => w.id === selectedWebsiteId);
+    return selected?.domain || websites[0]?.domain || 'tasktomoney.com';
+  };
 
   const handleRunAnalysis = async () => {
     setIsAnalyzing(true);
-    showToast('CEO Agent reading scanner data & memory...');
+    const domain = resolveDomain();
+    showToast(`CEO Strategic Planner gathering context for ${domain}...`);
     try {
-      const newReport = await ceoAgent.runExecutiveAnalysis('tasktomoney.com');
+      const newReport = await ceoAgent.runExecutiveAnalysis(domain);
       setReport(newReport);
-      showToast('Executive Analysis completed! Tasks submitted for approval.');
-    } catch (err: any) {
-      showToast(`CEO Analysis Error: ${err.message}`);
+      setActiveSubTab('strategy');
+      showToast('Strategic plan ready. Tasks registered for approval (not executed).');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      showToast(`CEO Planning Error: ${message}`);
     } finally {
       setIsAnalyzing(false);
     }
   };
 
   const defaultScores = report?.healthScores || {
-    overall: 88,
-    website: 90,
-    seo: 82,
-    performance: 92,
-    security: 95,
-    content: 80,
-    userExperience: 87,
-    accessibility: 88
+    overall: 0,
+    website: 0,
+    seo: 0,
+    performance: 0,
+    security: 0,
+    content: 0,
+    userExperience: 0,
+    accessibility: 0,
   };
 
-  const defaultRisks = report?.risks || [
-    {
-      id: 'risk-1',
-      title: 'Missing Meta Tags & FAQ Schema',
-      severity: 'Medium',
-      description: 'Core product pages lack microdata schema markup for rich Google search snippets.',
-      mitigationStrategy: 'Deploy JSON-LD schema generator workflow.'
-    },
-    {
-      id: 'risk-2',
-      title: 'Uncompressed Image Payload',
-      severity: 'Low',
-      description: 'Large PNG assets increase mobile network payload.',
-      mitigationStrategy: 'Compress PNG assets to WebP format.'
-    }
-  ];
-
-  const defaultOpportunities = report?.opportunities || [
-    {
-      id: 'opp-1',
-      title: 'SEO Content Expansion & Blog Creation',
-      potentialGrowth: '+35% Organic Search Impressions',
-      description: 'Publish weekly high-intent SEO technical tutorials.',
-      actionPlan: 'Task Growth Marketing Agent to generate content schedule.'
-    },
-    {
-      id: 'opp-2',
-      title: 'Internal Linking Optimization',
-      potentialGrowth: '+18% Pageviews Per Session',
-      description: 'Add contextual cross-links across all site articles.',
-      actionPlan: 'Automate internal link graph mapping.'
-    }
-  ];
-
-  const defaultTasks = report?.tasks || [
-    {
-      id: 'ceotask-1',
-      title: 'Improve Homepage Meta Title & Description',
-      description: 'Optimize page title tag to include target primary keywords and craft a compelling 155-character meta description.',
-      priority: 'High',
-      category: 'SEO',
-      estimatedImpact: 'High',
-      estimatedDifficulty: 'Easy',
-      suggestedAgent: 'SEO Specialist Agent',
-      reason: 'Current homepage title lacks target keyword focus for search rankings.',
-      status: 'Pending Approval',
-      approvalRequired: true
-    },
-    {
-      id: 'ceotask-2',
-      title: 'Create Missing FAQ & Support Page',
-      description: 'Add a dedicated FAQ section with JSON-LD schema markup to capture long-tail user search queries.',
-      priority: 'Medium',
-      category: 'Content',
-      estimatedImpact: 'High',
-      estimatedDifficulty: 'Moderate',
-      suggestedAgent: 'Growth Marketing Agent',
-      reason: 'Reduces support friction and improves search rich snippet eligibility.',
-      status: 'Pending Approval',
-      approvalRequired: true
-    }
-  ];
+  const defaultRisks = report?.risks || [];
+  const defaultOpportunities = report?.opportunities || [];
+  const defaultTasks = report?.tasks || [];
+  const strategicPlan = report?.strategicPlan || ceoAgent.getLatestStrategicPlan();
 
   return (
     <div className="space-y-6 animate-fade-in text-xs">
@@ -129,11 +83,12 @@ export const CEODashboard: React.FC = () => {
               <h1 className="text-xl font-extrabold text-slate-900">CEO Executive Agent Dashboard</h1>
               <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                Advisor Only (Read-Only Safety Lock)
+                Strategic Planner (Plan Only)
               </span>
             </div>
             <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Chief Executive Officer responsible for analyzing website health, planning improvements, creating tasks, and issuing executive briefings.
+              Company brain — business health, goals, roadmaps, and prioritized tasks. Execution belongs to
+              Task Engine & AI Employees.
             </p>
           </div>
         </div>
@@ -144,12 +99,19 @@ export const CEODashboard: React.FC = () => {
           className="px-5 py-2.5 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white font-extrabold text-xs transition-all shadow-sm flex items-center gap-2 cursor-pointer disabled:opacity-50 self-start md:self-auto"
         >
           <Play className={`w-4 h-4 fill-current ${isAnalyzing ? 'animate-spin' : ''}`} />
-          {isAnalyzing ? 'Executing AI Analysis...' : 'Run Executive Analysis'}
+          {isAnalyzing ? 'Building Strategic Plan...' : 'Run Strategic Planning'}
         </button>
       </div>
 
       {/* Health Overview Scorecard */}
-      <HealthOverview scores={defaultScores} />
+      {report ? (
+        <HealthOverview scores={defaultScores} />
+      ) : (
+        <div className="p-4 rounded-2xl bg-white border border-dashed border-slate-200 text-slate-500 font-semibold">
+          Run strategic planning to compute Business Health from Website Intelligence, Memory, and task
+          history.
+        </div>
+      )}
 
       {/* Decision Panel */}
       <DecisionPanel
@@ -164,17 +126,18 @@ export const CEODashboard: React.FC = () => {
       <div className="flex items-center gap-1 border-b border-slate-200 pb-1 overflow-x-auto custom-scrollbar">
         {[
           { id: 'overview', label: 'Executive Overview', icon: Sparkles },
+          { id: 'strategy', label: 'Strategy & Roadmap', icon: Map },
           { id: 'report', label: 'Executive Audit Report', icon: FileText },
-          { id: 'tasks', label: `Task Recommendations (${defaultTasks.length})`, icon: CheckSquare },
+          { id: 'tasks', label: `Recommended Tasks (${defaultTasks.length})`, icon: CheckSquare },
           { id: 'risks', label: `Risk & Growth Audit`, icon: BarChart3 },
-          { id: 'timeline', label: 'Analysis Timeline Log', icon: Activity }
+          { id: 'timeline', label: 'Analysis Timeline Log', icon: Activity },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeSubTab === tab.id;
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveSubTab(tab.id as any)}
+              onClick={() => setActiveSubTab(tab.id as typeof activeSubTab)}
               className={`px-4 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
                 isActive
                   ? 'bg-[#EEF2FF] text-[#4F46E5] shadow-2xs font-extrabold'
@@ -188,20 +151,34 @@ export const CEODashboard: React.FC = () => {
         })}
       </div>
 
-      {/* Sub-tab Content Panels */}
       {activeSubTab === 'overview' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-6 space-y-6">
-            <RiskPanel risks={defaultRisks as any} />
+            {defaultRisks.length > 0 ? (
+              <RiskPanel risks={defaultRisks as never} />
+            ) : (
+              <EmptyHint text="Risks appear after strategic planning." />
+            )}
           </div>
           <div className="lg:col-span-6 space-y-6">
-            <OpportunityPanel opportunities={defaultOpportunities as any} />
+            {defaultOpportunities.length > 0 ? (
+              <OpportunityPanel opportunities={defaultOpportunities as never} />
+            ) : (
+              <EmptyHint text="Opportunities appear after strategic planning." />
+            )}
           </div>
         </div>
       )}
 
-      {activeSubTab === 'report' && (
-        report ? (
+      {activeSubTab === 'strategy' &&
+        (strategicPlan ? (
+          <StrategicPlanningPanel plan={strategicPlan} />
+        ) : (
+          <EmptyHint text="No strategic plan yet. Run Strategic Planning to generate goals, roadmap, and priorities." />
+        ))}
+
+      {activeSubTab === 'report' &&
+        (report ? (
           <ExecutiveReportView report={report} />
         ) : (
           <div className="p-8 text-center bg-white rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
@@ -210,21 +187,33 @@ export const CEODashboard: React.FC = () => {
               onClick={handleRunAnalysis}
               className="px-4 py-2 rounded-xl bg-[#4F46E5] text-white font-bold text-xs cursor-pointer"
             >
-              Run Executive Analysis Now
+              Run Strategic Planning Now
             </button>
           </div>
-        )
-      )}
+        ))}
 
-      {activeSubTab === 'tasks' && <TaskRecommendations tasks={defaultTasks} />}
+      {activeSubTab === 'tasks' &&
+        (defaultTasks.length > 0 ? (
+          <TaskRecommendations tasks={defaultTasks} />
+        ) : (
+          <EmptyHint text="Recommended tasks appear after planning (created in Task Engine, not executed)." />
+        ))}
 
       {activeSubTab === 'risks' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-6">
-            <RiskPanel risks={defaultRisks as any} />
+            {defaultRisks.length > 0 ? (
+              <RiskPanel risks={defaultRisks as never} />
+            ) : (
+              <EmptyHint text="No risks yet." />
+            )}
           </div>
           <div className="lg:col-span-6">
-            <OpportunityPanel opportunities={defaultOpportunities as any} />
+            {defaultOpportunities.length > 0 ? (
+              <OpportunityPanel opportunities={defaultOpportunities as never} />
+            ) : (
+              <EmptyHint text="No opportunities yet." />
+            )}
           </div>
         </div>
       )}
@@ -233,3 +222,9 @@ export const CEODashboard: React.FC = () => {
     </div>
   );
 };
+
+const EmptyHint: React.FC<{ text: string }> = ({ text }) => (
+  <div className="p-6 text-center bg-white rounded-2xl border border-slate-200/80 shadow-2xs text-slate-500 font-semibold">
+    {text}
+  </div>
+);
