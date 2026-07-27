@@ -36,8 +36,12 @@ export const TaskDetailsView: React.FC<Props> = ({
 }) => {
   if (!task) {
     return (
-      <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs text-xs text-slate-400 font-medium text-center py-12">
-        Select a task to inspect details, logs, and controls.
+      <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
+        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/80 px-4 py-6 text-center">
+          <p className="text-xs font-semibold text-slate-500">
+            Select a task from the queue or task list to view details, logs, and controls.
+          </p>
+        </div>
       </div>
     );
   }

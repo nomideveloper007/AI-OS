@@ -15,16 +15,21 @@ interface Props {
 
 export const TaskExecutionTimeline: React.FC<Props> = ({ items }) => {
   return (
-    <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-3">
+    <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-3">
       <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
         <Clock className="w-4 h-4 text-[#4F46E5]" />
         <h3 className="font-extrabold text-slate-900 text-sm">Execution Timeline</h3>
+        <span className="ml-auto text-[10px] font-bold text-slate-400">{items.length}</span>
       </div>
 
       {items.length === 0 ? (
-        <p className="text-xs text-slate-400 font-medium text-center py-6">No timeline events yet.</p>
+        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/80 px-4 py-5 text-center">
+          <p className="text-xs font-semibold text-slate-500">
+            No events yet. Process the queue to generate execution history.
+          </p>
+        </div>
       ) : (
-        <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+        <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
           {items.map((item) => (
             <div key={item.id} className="flex gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200/70 text-xs">
               <div className="w-2 h-2 rounded-full bg-[#4F46E5] mt-1.5 flex-shrink-0" />
@@ -36,7 +41,6 @@ export const TaskExecutionTimeline: React.FC<Props> = ({ items }) => {
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-600 font-medium mt-0.5 break-words">{item.detail}</p>
-                <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{item.kind}</p>
               </div>
             </div>
           ))}
