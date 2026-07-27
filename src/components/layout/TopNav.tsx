@@ -24,7 +24,8 @@ export const TopNav: React.FC = () => {
   const tabTitles: Record<string, { title: string; subtitle: string }> = {
     dashboard: { title: 'Dashboard', subtitle: 'Overview of your AI OS' },
     websites: { title: 'Websites', subtitle: 'Manage connected websites & domains' },
-    agents: { title: 'Agents', subtitle: 'AI Employee fleet & autonomous agents' },
+    agents: { title: 'Agents Fleet', subtitle: 'Autonomous AI workers, skill capabilities & role assignments' },
+    ceo: { title: 'CEO Executive Office', subtitle: 'Chief Executive Officer AI Agent advisor, health audits & strategic planning' },
     tasks: { title: 'Tasks', subtitle: 'Task queue, background jobs & execution logs' },
     reports: { title: 'Reports', subtitle: 'Website health, traffic, SEO & performance audits' },
     approvals: { title: 'Approvals', subtitle: 'Pending changes requiring administrator review' },

@@ -14,7 +14,8 @@ import {
   Cpu,
   Database,
   Zap,
-  Workflow
+  Workflow,
+  Crown
 } from 'lucide-react';
 
 interface NavItemDef {
@@ -40,6 +41,7 @@ export const Sidebar: React.FC = () => {
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'websites', label: 'Websites', icon: Globe },
     { id: 'agents', label: 'Agents', icon: Bot },
+    { id: 'ceo', label: 'CEO Agent', icon: Crown },
     { id: 'tasks', label: 'Tasks', icon: CheckSquare, badge: runningTasksCount > 0 ? runningTasksCount : undefined },
     { id: 'reports', label: 'Reports', icon: BarChart3 },
     { id: 'approvals', label: 'Approvals', icon: ShieldCheck, badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : undefined },

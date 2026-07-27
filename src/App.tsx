@@ -26,6 +26,7 @@ import { AIEngineTestView } from './components/ai/AIEngineTestView';
 import { AIPlaygroundView } from './components/ai/AIPlaygroundView';
 import { MemoryView } from './memory/components/MemoryView';
 import { WorkflowView } from './workflow/components/WorkflowView';
+import { CEODashboard } from './agents/ceo/components/CEODashboard';
 
 const MainContent: React.FC = () => {
   const { activeTab, isSidebarCollapsed } = useApp();
@@ -38,6 +39,8 @@ const MainContent: React.FC = () => {
         return <WebsitesView />;
       case 'agents':
         return <AgentsView />;
+      case 'ceo':
+        return <CEODashboard />;
       case 'tasks':
         return <TasksView />;
       case 'reports':

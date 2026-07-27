@@ -2,6 +2,7 @@ export type NavTab =
   | 'dashboard' 
   | 'websites' 
   | 'agents' 
+  | 'ceo'
   | 'tasks' 
   | 'reports' 
   | 'approvals' 
