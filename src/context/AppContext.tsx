@@ -20,7 +20,8 @@ import {
   initialActivityLogs, 
   initialNotifications 
 } from '../data/mockData';
-import { initialScans, generateNewScanForWebsite, SCAN_STEPS } from '../data/scannerEngine';
+import { initialScans, SCAN_STEPS } from '../data/scannerEngine';
+import { WebsiteScanner } from '../scanner';
 
 interface AddWebsitePayload {
   name: string;
@@ -137,7 +138,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [deletingWebsite, setDeletingWebsite] = useState<WebsiteItem | null>(null);
 
   // Scanner Engine States
-  const [scans, setScans] = useState<WebsiteScanResult[]>(initialScans);
+  const [scans, setScans] = useState<WebsiteScanResult[]>(() => {
+    const stored = WebsiteScanner.getInstance().getRepository().listProcessed();
+    return stored.length > 0 ? stored : initialScans;
+  });
   const [activeScanningWebsite, setActiveScanningWebsite] = useState<WebsiteItem | null>(null);
   const [scanningStepIndex, setScanningStepIndex] = useState<number>(0);
   const [activeReportScan, setActiveReportScan] = useState<WebsiteScanResult | null>(null);
@@ -358,50 +362,89 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setScanningStepIndex(0);
   };
 
-  const startWebsiteScan = (websiteId: string, errorTypeToSimulate?: string) => {
+  const startWebsiteScan = (websiteId: string, _errorTypeToSimulate?: string) => {
     const targetWeb = websites.find((w) => w.id === websiteId);
     if (!targetWeb) return;
 
     setActiveScanningWebsite(targetWeb);
     setScanningStepIndex(0);
 
-    // Simulate step by step scanning progress
-    let step = 0;
-    const interval = setInterval(() => {
-      step += 1;
-      setScanningStepIndex(step);
+    const scanner = WebsiteScanner.getInstance();
 
-      if (step >= SCAN_STEPS.length - 1) {
-        clearInterval(interval);
-        setTimeout(() => {
-          const scanResult = generateNewScanForWebsite(targetWeb, errorTypeToSimulate);
-          setScans((prev) => [scanResult, ...prev]);
+    void (async () => {
+      try {
+        const scanResult = await scanner.scan(targetWeb, (stepIndex) => {
+          setScanningStepIndex(Math.min(stepIndex, SCAN_STEPS.length - 1));
+        });
 
-          // Update website last scan info
-          setWebsites((prev) =>
-            prev.map((w) =>
-              w.id === websiteId
-                ? {
-                    ...w,
-                    lastScan: 'Just now',
-                    updated_at: new Date().toISOString(),
-                    healthScore: scanResult.status === 'completed' ? 88 : 45
-                  }
-                : w
-            )
-          );
+        setScans((prev) => [scanResult, ...prev.filter((s) => s.id !== scanResult.id)]);
 
-          setActiveScanningWebsite(null);
-          setScanningStepIndex(0);
+        const healthScore =
+          scanResult.status === 'completed'
+            ? Math.max(
+                20,
+                Math.min(
+                  100,
+                  100 -
+                    scanResult.links.brokenCount * 5 -
+                    scanResult.images.missingAltCount * 2 -
+                    (scanResult.files.robotsTxt.found ? 0 : 8) -
+                    (scanResult.files.sitemapXml.found ? 0 : 8)
+                )
+              )
+            : 25;
 
-          if (scanResult.status === 'completed') {
-            showToast(`Scan completed for ${targetWeb.domain}`);
-          } else {
-            showToast(`Scan failed for ${targetWeb.domain}`);
-          }
-        }, 600);
+        setWebsites((prev) =>
+          prev.map((w) =>
+            w.id === websiteId
+              ? {
+                  ...w,
+                  lastScan: 'Just now',
+                  updated_at: new Date().toISOString(),
+                  healthScore,
+                  metrics: scanResult.status === 'completed'
+                    ? {
+                        performance: Math.max(
+                          10,
+                          100 - Math.min(80, Math.round(scanResult.performance.loadTimeMs / 40))
+                        ),
+                        seo: Math.max(
+                          10,
+                          100 -
+                            (scanResult.meta.title ? 0 : 20) -
+                            (scanResult.meta.description ? 0 : 15) -
+                            (scanResult.files.sitemapXml.found ? 0 : 15)
+                        ),
+                        security: scanResult.security.httpsEnabled
+                          ? 70 +
+                            (scanResult.security.headers.hsts ? 8 : 0) +
+                            (scanResult.security.headers.csp ? 8 : 0)
+                          : 30,
+                        accessibility: Math.max(
+                          10,
+                          100 - scanResult.images.missingAltCount * 4
+                        ),
+                      }
+                    : w.metrics,
+                }
+              : w
+          )
+        );
+
+        if (scanResult.status === 'completed') {
+          showToast(`Real scan completed for ${targetWeb.domain}`);
+        } else {
+          showToast(`Scan failed for ${targetWeb.domain}: ${scanResult.error_message || 'error'}`);
+        }
+      } catch (err) {
+        showToast(
+          `Scan error: ${err instanceof Error ? err.message : 'Unknown scanner failure'}`
+        );
+      } finally {
+        setActiveScanningWebsite(null);
+        setScanningStepIndex(0);
       }
-    }, 450);
+    })();
   };
 
   // Toggle favorite website
