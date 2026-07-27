@@ -31,6 +31,8 @@ import { WebsiteIntelligenceView } from './intelligence/components/WebsiteIntell
 import { TaskBoard } from './task-engine/components/TaskBoard';
 import { AgentRuntimeView } from './agent-runtime/components/AgentRuntimeView';
 import { SEOAgentView } from './agents/seo/components/SEOAgentView';
+import { CollaborationView } from './collaboration/components/CollaborationView';
+import { MissionControlView } from './orchestrator/components/MissionControlView';
 
 const MainContent: React.FC = () => {
   const { activeTab, isSidebarCollapsed } = useApp();
@@ -55,6 +57,10 @@ const MainContent: React.FC = () => {
         return <AgentRuntimeView />;
       case 'seo_agent':
         return <SEOAgentView />;
+      case 'collaboration':
+        return <CollaborationView />;
+      case 'mission_control':
+        return <MissionControlView />;
       case 'reports':
         return <ReportsView />;
       case 'approvals':

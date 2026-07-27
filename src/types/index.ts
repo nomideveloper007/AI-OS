@@ -7,6 +7,8 @@ export type NavTab =
   | 'task_engine'
   | 'agent_runtime'
   | 'seo_agent'
+  | 'collaboration'
+  | 'mission_control'
   | 'reports' 
   | 'approvals' 
   | 'activity' 
