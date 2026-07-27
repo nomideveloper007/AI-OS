@@ -47,6 +47,8 @@ export interface AIChatResponse {
   id: string;
   modelId: string;
   providerId: string;
+  /** Unix seconds from upstream OpenAI-compatible payload when present. */
+  created?: number;
   choices: AIChatChoice[];
   usage: AITokenUsage;
   durationMs: number;

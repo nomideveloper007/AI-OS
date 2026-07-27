@@ -20,12 +20,22 @@ export class ProviderRegistry {
     return ProviderRegistry.instance;
   }
 
+  /** Dev/HMR: drop stale singleton so OmniRouteProvider production code is re-bound. */
+  public static resetInstance(): void {
+    ProviderRegistry.instance = undefined as unknown as ProviderRegistry;
+  }
+
   private registerDefaultProviders(): void {
     const mock = new MockProvider();
     const omni = new OmniRouteProvider();
 
     this.registerProvider(mock);
     this.registerProvider(omni);
+  }
+
+  /** Always prefer a fresh OmniRoute provider binding after hot reload. */
+  public ensureOmniRouteProduction(): void {
+    this.registerProvider(new OmniRouteProvider());
   }
 
   public registerProvider(provider: BaseProvider): void {

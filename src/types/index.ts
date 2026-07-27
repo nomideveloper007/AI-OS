@@ -9,6 +9,7 @@ export type NavTab =
   | 'activity' 
   | 'ai_engine'
   | 'playground'
+  | 'website_intelligence'
   | 'memory'
   | 'workflow'
   | 'settings';

@@ -17,8 +17,9 @@ export const TASK_TYPES = {
   SEARCH_SUMMARY: 'search_summary'
 } as const;
 
-export const DEFAULT_MODEL_ID = 'mock-gpt-4o';
-export const DEFAULT_PROVIDER_ID = 'mock';
-export const DEFAULT_TIMEOUT_MS = 30000;
+/** Default model as advertised by local OmniRoute GET /v1/models */
+export const DEFAULT_MODEL_ID = 'auto/best-chat';
+export const DEFAULT_PROVIDER_ID = 'omniroute';
+export const DEFAULT_TIMEOUT_MS = 60000;
 export const DEFAULT_MAX_RETRIES = 3;
 export const DEFAULT_BACKOFF_FACTOR = 1.5;

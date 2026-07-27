@@ -45,6 +45,8 @@ export const SettingsView: React.FC = () => {
   };
 
   const handleTestConnection = async () => {
+    // Persist form values first so healthCheck uses the typed URL/key
+    configInstance.updateConfig(config);
     setIsTestingConnection(true);
     const provider = new OmniRouteProvider();
     try {
@@ -54,7 +56,11 @@ export const SettingsView: React.FC = () => {
         latencyMs: res.latencyMs,
         message: res.message || 'OmniRoute Gateway Online'
       });
-      showToast(`OmniRoute Ping Success! Latency: ${res.latencyMs}ms`);
+      if (res.status === 'healthy') {
+        showToast(`OmniRoute Ping Success! Latency: ${res.latencyMs}ms`);
+      } else {
+        showToast(res.message || 'OmniRoute Connection Degraded');
+      }
     } catch (err: any) {
       setConnectionStatus({
         status: 'Offline',
@@ -291,20 +297,26 @@ export const SettingsView: React.FC = () => {
                       type="text"
                       value={config.omniRouteBaseUrl}
                       onChange={(e) => setConfig({ ...config, omniRouteBaseUrl: e.target.value })}
+                      placeholder="/omniroute/v1"
                       className="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 font-mono text-slate-800 focus:outline-none"
                     />
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      Default `/omniroute/v1` is proxied to local OmniRoute (`http://localhost:20128/v1`).
+                    </p>
                   </div>
 
                   <div>
                     <label className="block font-bold text-slate-700 mb-1">OmniRoute API Key</label>
                     <input
                       type="password"
-                      placeholder="omni_sk_live_••••••••••••••••••••"
+                      placeholder="optional while REQUIRE_API_KEY=false"
                       value={config.omniRouteApiKey}
                       onChange={(e) => setConfig({ ...config, omniRouteApiKey: e.target.value })}
                       className="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 font-mono text-slate-800 focus:outline-none"
                     />
-                    <p className="text-[10px] text-slate-400 mt-1">Credentials stored securely in process environment variables.</p>
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      Saved in browser localStorage. Leave empty if OmniRoute auth is disabled.
+                    </p>
                   </div>
                 </div>
               </div>

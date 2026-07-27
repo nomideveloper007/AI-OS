@@ -5,6 +5,73 @@ import { ModelRegistry } from '../models/ModelRegistry';
 import { AIConfig } from '../config/AIConfig';
 import { ProviderError } from '../errors/ProviderError';
 import { AILogger } from '../utils/Logger';
+import { ResponseParser, OpenAIChatCompletionPayload } from '../utils/ResponseParser';
+import { TokenCounter } from '../utils/TokenCounter';
+
+function buildUrl(baseUrl: string, path: string): string {
+  const base = baseUrl.replace(/\/$/, '');
+  const suffix = path.startsWith('/') ? path : `/${path}`;
+  return `${base}${suffix}`;
+}
+
+/** Map legacy playground placeholders to real OmniRoute model ids. */
+function resolveModelId(modelId: string | undefined, fallback: string): string {
+  const id = (modelId || fallback || 'auto/best-chat').trim();
+  if (!id || id === 'omniroute-auto' || id === 'omniroute') {
+    return 'auto/best-chat';
+  }
+  return id;
+}
+
+function buildHeaders(apiKey: string): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  };
+  if (apiKey.trim()) {
+    headers.Authorization = `Bearer ${apiKey.trim()}`;
+  }
+  return headers;
+}
+
+async function readErrorDetail(response: Response): Promise<string> {
+  try {
+    const errBody = (await response.json()) as OpenAIChatCompletionPayload;
+    return errBody?.error?.message || (errBody as { message?: string }).message || '';
+  } catch {
+    try {
+      return (await response.text()).slice(0, 300);
+    } catch {
+      return '';
+    }
+  }
+}
+
+function mapHttpError(status: number, detail: string, providerId: string): ProviderError {
+  const message = detail ? detail : `HTTP ${status}`;
+  if (status === 401 || status === 403) {
+    return new ProviderError(`Unauthorized: ${message}`, providerId, 'UNAUTHORIZED', { status });
+  }
+  if (status === 404) {
+    return new ProviderError(`Invalid model or route: ${message}`, providerId, 'INVALID_MODEL', {
+      status,
+    });
+  }
+  if (status === 429) {
+    return new ProviderError(`Rate limit exceeded: ${message}`, providerId, 'RATE_LIMIT', { status });
+  }
+  if (status === 408) {
+    return new ProviderError(`Request timeout: ${message}`, providerId, 'TIMEOUT', { status });
+  }
+  if (status === 502 || status === 503 || status === 504) {
+    return new ProviderError(`Provider offline: ${message}`, providerId, 'PROVIDER_OFFLINE', {
+      status,
+    });
+  }
+  return new ProviderError(`OmniRoute error (${status}): ${message}`, providerId, 'HTTP_ERROR', {
+    status,
+  });
+}
 
 export class OmniRouteProvider extends BaseProvider {
   public readonly id = 'omniroute';
@@ -14,7 +81,7 @@ export class OmniRouteProvider extends BaseProvider {
   private config = AIConfig.getInstance();
 
   public async initialize(): Promise<void> {
-    this.logger.info('Initializing OmniRouteProvider client interface...', 'OmniRouteProvider');
+    this.logger.info('Initializing OmniRouteProvider (production mode)...', 'OmniRouteProvider');
     this.isConnected = true;
   }
 
@@ -28,189 +95,338 @@ export class OmniRouteProvider extends BaseProvider {
     this.logger.info('Disconnected from OmniRoute AI gateway.', 'OmniRouteProvider');
   }
 
+  private requireBaseUrl(): string {
+    const baseUrl = this.config.getConfig().omniRouteBaseUrl;
+    if (!baseUrl) {
+      throw new ProviderError(
+        'OmniRoute base URL is not configured. Set VITE_OMNIROUTE_BASE_URL or Settings → Providers.',
+        this.id,
+        'CONFIG_ERROR'
+      );
+    }
+    return baseUrl;
+  }
+
   public async chat(request: AIChatRequest): Promise<AIChatResponse> {
     const startTime = Date.now();
     const cfg = this.config.getConfig();
-    const modelId = request.modelId || cfg.defaultModelId || 'omniroute-auto';
+    const modelId = resolveModelId(request.modelId || cfg.defaultModelId, 'auto/best-chat');
+    const baseUrl = this.requireBaseUrl();
     const lastMessage = request.messages[request.messages.length - 1]?.content || '';
 
-    this.logger.info(`Sending chat payload to OmniRoute gateway (${modelId})...`, 'OmniRouteProvider', {
+    this.logger.info(`Chat → OmniRoute (${modelId})`, 'OmniRouteProvider', {
       modelId,
       promptLength: lastMessage.length,
-      temperature: request.temperature ?? cfg.temperature
+      temperature: request.temperature ?? cfg.temperature,
     });
 
-    // Handle real HTTP fetch if API Key exists and is valid
-    if (cfg.omniRouteApiKey && cfg.omniRouteBaseUrl) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), cfg.timeoutMs || 30000);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), cfg.timeoutMs || 60000);
 
-        const response = await fetch(`${cfg.omniRouteBaseUrl.replace(/\/$/, '')}/chat/completions`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${cfg.omniRouteApiKey}`
-          },
-          body: JSON.stringify({
-            model: modelId,
-            messages: request.messages.map(m => ({ role: m.role, content: m.content })),
-            temperature: request.temperature ?? cfg.temperature,
-            max_tokens: request.maxTokens ?? cfg.maxTokens
-          }),
-          signal: controller.signal
-        });
+    try {
+      const response = await fetch(buildUrl(baseUrl, '/chat/completions'), {
+        method: 'POST',
+        headers: buildHeaders(cfg.omniRouteApiKey || ''),
+        body: JSON.stringify({
+          model: modelId,
+          messages: request.messages.map((m) => ({ role: m.role, content: m.content })),
+          temperature: request.temperature ?? cfg.temperature,
+          max_tokens: request.maxTokens ?? cfg.maxTokens,
+          stream: false,
+        }),
+        signal: controller.signal,
+      });
 
-        clearTimeout(timeoutId);
+      clearTimeout(timeoutId);
 
-        if (response.status === 401) {
-          throw new ProviderError('OmniRoute API key unauthorized or invalid.', this.id, 'UNAUTHORIZED');
-        }
-        if (response.status === 429) {
-          throw new ProviderError('OmniRoute rate limit exceeded.', this.id, 'RATE_LIMIT_EXCEEDED');
-        }
-        if (!response.ok) {
-          throw new ProviderError(`OmniRoute error response HTTP ${response.status}`, this.id, 'HTTP_ERROR');
-        }
-
-        const data = await response.json();
-        const duration = Date.now() - startTime;
-
-        this.logger.info(`OmniRoute response received in ${duration}ms`, 'OmniRouteProvider');
-
-        return {
-          id: data.id || `chatcmpl-omni-${Date.now()}`,
-          modelId,
-          providerId: this.id,
-          choices: [
-            {
-              index: 0,
-              message: {
-                id: `msg-${Date.now()}`,
-                role: 'assistant',
-                content: data.choices[0]?.message?.content || '[OmniRoute Empty Response]',
-                timestamp: new Date().toISOString()
-              },
-              finishReason: 'stop'
-            }
-          ],
-          usage: {
-            promptTokens: data.usage?.prompt_tokens || Math.ceil(lastMessage.length / 4),
-            completionTokens: data.usage?.completion_tokens || 50,
-            totalTokens: data.usage?.total_tokens || (Math.ceil(lastMessage.length / 4) + 50)
-          },
-          durationMs: duration,
-          timestamp: new Date().toISOString()
-        };
-      } catch (err: any) {
-        if (err.name === 'AbortError') {
-          this.logger.error('OmniRoute request timed out after ' + cfg.timeoutMs + 'ms', 'OmniRouteProvider');
-          throw new ProviderError('OmniRoute connection timed out.', this.id, 'TIMEOUT');
-        }
-        if (err instanceof ProviderError) throw err;
-
-        this.logger.warn(`OmniRoute network request failed: ${err.message}. Falling back to gateway response...`, 'OmniRouteProvider');
+      if (!response.ok) {
+        const detail = await readErrorDetail(response);
+        throw mapHttpError(response.status, detail, this.id);
       }
-    }
 
-    // Graceful production fallback for testing when live API key is not configured or server unreachable
-    const durationMs = Date.now() - startTime + 120;
-    const mockContent = `[OmniRoute Gateway Response] (${modelId}): Successfully processed prompt query: "${lastMessage.substring(0, 60)}...". Model routing, latency monitoring, and token tracking fully verified.`;
+      let data: OpenAIChatCompletionPayload;
+      try {
+        data = (await response.json()) as OpenAIChatCompletionPayload;
+      } catch {
+        throw new ProviderError('Invalid JSON in chat completion response.', this.id, 'INVALID_JSON');
+      }
 
-    const promptTokens = Math.ceil(lastMessage.length / 4) + 8;
-    const completionTokens = Math.ceil(mockContent.length / 4);
-
-    this.logger.info(`OmniRoute pipeline completed in ${durationMs}ms`, 'OmniRouteProvider', {
-      tokens: promptTokens + completionTokens,
-      latency: durationMs
-    });
-
-    return {
-      id: `chatcmpl-omni-${Date.now()}`,
-      modelId,
-      providerId: this.id,
-      choices: [
-        {
-          index: 0,
-          message: {
-            id: `msg-${Date.now()}`,
-            role: 'assistant',
-            content: mockContent,
-            timestamp: new Date().toISOString()
-          },
-          finishReason: 'stop'
-        }
-      ],
-      usage: {
-        promptTokens,
-        completionTokens,
-        totalTokens: promptTokens + completionTokens
-      },
-      durationMs,
-      timestamp: new Date().toISOString()
-    };
-  }
-
-  public async stream(request: AIChatRequest, onChunk: (chunk: AIStreamChunk) => void): Promise<AIChatResponse> {
-    const startTime = Date.now();
-    const modelId = request.modelId || 'omniroute-auto';
-    const lastMessage = request.messages[request.messages.length - 1]?.content || '';
-
-    const mockContent = `[OmniRoute Streaming Response] (${modelId}): Output for request "${lastMessage.substring(0, 40)}...". Gateway latency and token counters active.`;
-    const tokens = mockContent.split(' ');
-
-    for (let i = 0; i < tokens.length; i++) {
-      const isLast = i === tokens.length - 1;
-      onChunk({
-        id: `chunk-omni-${Date.now()}-${i}`,
+      const parsed = ResponseParser.parseOpenAIChatCompletion(data, {
         modelId,
         providerId: this.id,
-        delta: {
-          role: i === 0 ? 'assistant' : undefined,
-          content: tokens[i] + (isLast ? '' : ' ')
-        },
-        finishReason: isLast ? 'stop' : undefined
+        durationMs: Date.now() - startTime,
       });
-      await new Promise((res) => setTimeout(res, 35));
-    }
 
-    return this.chat(request);
+      this.logger.info(`Chat ← OmniRoute ${parsed.durationMs}ms`, 'OmniRouteProvider', {
+        modelId: parsed.modelId,
+        tokens: parsed.usage.totalTokens,
+        finishReason: parsed.choices[0]?.finishReason,
+      });
+
+      return parsed;
+    } catch (err: unknown) {
+      clearTimeout(timeoutId);
+      throw this.normalizeFetchError(err, cfg.timeoutMs || 60000, baseUrl);
+    }
+  }
+
+  public async stream(
+    request: AIChatRequest,
+    onChunk: (chunk: AIStreamChunk) => void
+  ): Promise<AIChatResponse> {
+    const startTime = Date.now();
+    const cfg = this.config.getConfig();
+    const modelId = resolveModelId(request.modelId || cfg.defaultModelId, 'auto/best-chat');
+    const baseUrl = this.requireBaseUrl();
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), cfg.timeoutMs || 60000);
+
+    let fullContent = '';
+    let resolvedModelId = modelId;
+    let responseId = `chatcmpl-omni-${Date.now()}`;
+    let created = Math.floor(Date.now() / 1000);
+    let finishReason: AIChatResponse['choices'][0]['finishReason'] = 'stop';
+    let usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+    let chunkIndex = 0;
+
+    try {
+      const response = await fetch(buildUrl(baseUrl, '/chat/completions'), {
+        method: 'POST',
+        headers: {
+          ...buildHeaders(cfg.omniRouteApiKey || ''),
+          Accept: 'text/event-stream',
+        },
+        body: JSON.stringify({
+          model: modelId,
+          messages: request.messages.map((m) => ({ role: m.role, content: m.content })),
+          temperature: request.temperature ?? cfg.temperature,
+          max_tokens: request.maxTokens ?? cfg.maxTokens,
+          stream: true,
+          stream_options: { include_usage: true },
+        }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        clearTimeout(timeoutId);
+        const detail = await readErrorDetail(response);
+        throw mapHttpError(response.status, detail, this.id);
+      }
+
+      if (!response.body) {
+        clearTimeout(timeoutId);
+        this.logger.warn('Stream body missing; falling back to non-streaming chat.', 'OmniRouteProvider');
+        return this.chat(request);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          let parsed: OpenAIChatCompletionPayload | '[DONE]' | null;
+          try {
+            parsed = ResponseParser.parseSSEDataLine(line);
+          } catch (sseErr) {
+            if (sseErr instanceof ProviderError && sseErr.code === 'INVALID_JSON') {
+              this.logger.warn('Skipping malformed SSE line', 'OmniRouteProvider');
+              continue;
+            }
+            throw sseErr;
+          }
+          if (!parsed || parsed === '[DONE]') continue;
+
+          if (parsed.id) responseId = parsed.id;
+          if (parsed.model) resolvedModelId = parsed.model;
+          if (typeof parsed.created === 'number') created = parsed.created;
+          if (parsed.usage) {
+            usage = ResponseParser.parseUsage(parsed.usage);
+          }
+
+          const choice = parsed.choices?.[0];
+          if (!choice) continue;
+
+          if (choice.finish_reason) {
+            finishReason = ResponseParser.normalizeFinishReason(choice.finish_reason);
+          }
+
+          const deltaText = ResponseParser.extractMessageContent(
+            choice.delta?.content as string | Array<{ type?: string; text?: string }> | null | undefined
+          );
+          if (!deltaText) continue;
+
+          fullContent += deltaText;
+          chunkIndex += 1;
+          onChunk({
+            id: `${responseId}-${chunkIndex}`,
+            modelId: resolvedModelId,
+            providerId: this.id,
+            delta: {
+              role: chunkIndex === 1 ? 'assistant' : undefined,
+              content: deltaText,
+            },
+            finishReason: choice.finish_reason || undefined,
+          });
+        }
+      }
+
+      clearTimeout(timeoutId);
+
+      if (!fullContent) {
+        throw new ProviderError('Empty streaming response from OmniRoute.', this.id, 'EMPTY_RESPONSE');
+      }
+
+      if (usage.totalTokens === 0) {
+        const promptTokens = TokenCounter.estimateMessageTokens(
+          request.messages.map((m) => ({ role: m.role, content: m.content }))
+        );
+        const completionTokens = TokenCounter.estimateTokens(fullContent);
+        usage = {
+          promptTokens,
+          completionTokens,
+          totalTokens: promptTokens + completionTokens,
+        };
+      }
+
+      const durationMs = Date.now() - startTime;
+      this.logger.info(`Stream ← OmniRoute ${durationMs}ms`, 'OmniRouteProvider', {
+        modelId: resolvedModelId,
+        tokens: usage.totalTokens,
+        chunks: chunkIndex,
+      });
+
+      return {
+        id: responseId,
+        modelId: resolvedModelId,
+        providerId: this.id,
+        created,
+        choices: [
+          {
+            index: 0,
+            message: {
+              id: `msg-${Date.now()}`,
+              role: 'assistant',
+              content: fullContent,
+              timestamp: new Date().toISOString(),
+            },
+            finishReason,
+          },
+        ],
+        usage,
+        durationMs,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (err: unknown) {
+      clearTimeout(timeoutId);
+      throw this.normalizeFetchError(err, cfg.timeoutMs || 60000, baseUrl);
+    }
+  }
+
+  private normalizeFetchError(err: unknown, timeoutMs: number, baseUrl: string): ProviderError {
+    if (err instanceof ProviderError) return err;
+    const anyErr = err as { name?: string; message?: string };
+    if (anyErr?.name === 'AbortError') {
+      this.logger.error(`OmniRoute timed out after ${timeoutMs}ms`, 'OmniRouteProvider');
+      return new ProviderError('OmniRoute connection timed out.', this.id, 'TIMEOUT');
+    }
+    this.logger.error(`OmniRoute network error: ${anyErr?.message}`, 'OmniRouteProvider');
+    return new ProviderError(
+      `Network error reaching OmniRoute (${baseUrl}): ${anyErr?.message || 'unknown'}`,
+      this.id,
+      'NETWORK_ERROR'
+    );
   }
 
   public async listModels(): Promise<AIModel[]> {
-    return ModelRegistry.getInstance().getModelsByProvider(this.id);
+    const cfg = this.config.getConfig();
+    if (!cfg.omniRouteBaseUrl) {
+      return ModelRegistry.getInstance().getModelsByProvider(this.id);
+    }
+
+    try {
+      const res = await fetch(buildUrl(cfg.omniRouteBaseUrl, '/models'), {
+        headers: buildHeaders(cfg.omniRouteApiKey || ''),
+      });
+      if (!res.ok) {
+        return ModelRegistry.getInstance().getModelsByProvider(this.id);
+      }
+      const data = await res.json();
+      const items = Array.isArray(data?.data) ? data.data : [];
+      return items.slice(0, 50).map((m: { id?: string }) => ({
+        id: m.id || 'unknown',
+        name: m.id || 'unknown',
+        provider: this.id,
+        description: `OmniRoute model ${m.id}`,
+        capabilities: {
+          supportsVision: true,
+          supportsTools: true,
+          supportsStreaming: true,
+          supportsReasoning: true,
+          contextWindow: 128000,
+          maxOutputTokens: 8192,
+        },
+        status: 'active' as const,
+      }));
+    } catch {
+      return ModelRegistry.getInstance().getModelsByProvider(this.id);
+    }
   }
 
   public async healthCheck(): Promise<AIHealthCheckResult> {
     const cfg = this.config.getConfig();
     const startTime = Date.now();
 
-    if (cfg.omniRouteApiKey) {
-      try {
-        const res = await fetch(`${cfg.omniRouteBaseUrl.replace(/\/$/, '')}/models`, {
-          headers: { Authorization: `Bearer ${cfg.omniRouteApiKey}` }
-        });
-        const latency = Date.now() - startTime;
-        if (res.ok) {
-          return {
-            providerId: this.id,
-            status: 'healthy',
-            latencyMs: latency,
-            message: `OmniRoute Gateway Connected (${latency}ms)`,
-            timestamp: new Date().toISOString()
-          };
-        }
-      } catch {
-        // Fallback to simulated healthy check below
-      }
+    if (!cfg.omniRouteBaseUrl) {
+      return {
+        providerId: this.id,
+        status: 'unhealthy',
+        latencyMs: 0,
+        message: 'OmniRoute base URL not configured',
+        timestamp: new Date().toISOString(),
+      };
     }
 
-    return {
-      providerId: this.id,
-      status: 'healthy',
-      latencyMs: 14,
-      message: 'OmniRoute Smart Gateway Online',
-      timestamp: new Date().toISOString()
-    };
+    try {
+      const res = await fetch(buildUrl(cfg.omniRouteBaseUrl, '/models'), {
+        headers: buildHeaders(cfg.omniRouteApiKey || ''),
+      });
+      const latency = Date.now() - startTime;
+      if (res.ok) {
+        this.isConnected = true;
+        return {
+          providerId: this.id,
+          status: 'healthy',
+          latencyMs: latency,
+          message: `OmniRoute Production Mode Connected (${latency}ms)`,
+          timestamp: new Date().toISOString(),
+        };
+      }
+      this.isConnected = false;
+      return {
+        providerId: this.id,
+        status: 'unhealthy',
+        latencyMs: latency,
+        message: `OmniRoute /models returned HTTP ${res.status}`,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (err: unknown) {
+      this.isConnected = false;
+      const message = err instanceof Error ? err.message : 'network error';
+      return {
+        providerId: this.id,
+        status: 'unhealthy',
+        latencyMs: Date.now() - startTime,
+        message: `Provider offline: ${message}`,
+        timestamp: new Date().toISOString(),
+      };
+    }
   }
 }

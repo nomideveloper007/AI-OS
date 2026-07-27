@@ -32,6 +32,10 @@ export const TopNav: React.FC = () => {
     activity: { title: 'Activity Logs', subtitle: 'System audit trail and platform event history' },
     ai_engine: { title: 'AI Engine', subtitle: 'Enterprise AI subsystem facade, model router & prompt manager' },
     playground: { title: 'AI Playground', subtitle: 'Interactive prompt testbed for OmniRoute AI Engine' },
+    website_intelligence: {
+      title: 'Website Intelligence',
+      subtitle: 'Structured website knowledge from scanner results for agents & reports',
+    },
     memory: { title: 'Knowledge & Memory', subtitle: 'Single source of truth knowledge repository & long-term memory' },
     workflow: { title: 'Workflows Mission Control', subtitle: 'Orchestrate, execute, track, and monitor automated workflow pipelines' },
     settings: { title: 'Settings', subtitle: 'System preferences, API keys & account management' }

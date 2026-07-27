@@ -16,7 +16,7 @@ export const DEFAULT_CEO_CONFIG: CEOAgentConfig = {
   name: 'CEO Executive Agent',
   role: 'Chief Executive Officer & Chief Operations Advisor',
   avatar: '👑',
-  modelId: 'omniroute-auto',
+  modelId: 'auto/best-chat',
   providerId: 'omniroute',
   temperature: 0.3,
   maxTokens: 3000,

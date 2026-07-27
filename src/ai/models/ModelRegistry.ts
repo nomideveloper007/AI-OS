@@ -78,16 +78,61 @@ export class ModelRegistry {
         status: 'active'
       },
       {
-        id: 'omniroute-auto',
-        name: 'OmniRoute Smart Router Model',
+        id: 'auto/best-chat',
+        name: 'OmniRoute Auto · Best Chat',
         provider: 'omniroute',
-        description: 'OmniRoute dynamic model routing gateway placeholder.',
+        description: 'OmniRoute auto-combo: best general chat model from connected providers.',
         capabilities: {
           supportsVision: true,
           supportsTools: true,
           supportsStreaming: true,
           supportsReasoning: true,
           contextWindow: 128000,
+          maxOutputTokens: 8192
+        },
+        status: 'active'
+      },
+      {
+        id: 'auto/best-coding',
+        name: 'OmniRoute Auto · Best Coding',
+        provider: 'omniroute',
+        description: 'OmniRoute auto-combo optimized for coding tasks.',
+        capabilities: {
+          supportsVision: false,
+          supportsTools: true,
+          supportsStreaming: true,
+          supportsReasoning: true,
+          contextWindow: 128000,
+          maxOutputTokens: 8192
+        },
+        status: 'active'
+      },
+      {
+        id: 'auto/best-reasoning',
+        name: 'OmniRoute Auto · Best Reasoning',
+        provider: 'omniroute',
+        description: 'OmniRoute auto-combo optimized for deep reasoning.',
+        capabilities: {
+          supportsVision: false,
+          supportsTools: true,
+          supportsStreaming: true,
+          supportsReasoning: true,
+          contextWindow: 128000,
+          maxOutputTokens: 8192
+        },
+        status: 'active'
+      },
+      {
+        id: 'auto/best-fast',
+        name: 'OmniRoute Auto · Best Fast',
+        provider: 'omniroute',
+        description: 'OmniRoute auto-combo optimized for low latency.',
+        capabilities: {
+          supportsVision: false,
+          supportsTools: true,
+          supportsStreaming: true,
+          supportsReasoning: false,
+          contextWindow: 64000,
           maxOutputTokens: 4096
         },
         status: 'active'

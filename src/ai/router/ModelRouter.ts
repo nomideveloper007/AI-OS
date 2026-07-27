@@ -47,6 +47,35 @@ export class ModelRouter {
           reason: `Explicitly requested model '${explicitModelId}'.`
         };
       }
+
+      // Passthrough any OmniRoute model id (e.g. auto/best-chat, openai/gpt-4o-mini)
+      // even if it is not pre-registered in the local ModelRegistry.
+      try {
+        const omniProvider = providerRegistry.getProvider('omniroute');
+        const passthroughModel: AIModel = {
+          id: explicitModelId,
+          name: explicitModelId,
+          provider: 'omniroute',
+          description: `OmniRoute passthrough model ${explicitModelId}`,
+          capabilities: {
+            supportsVision: true,
+            supportsTools: true,
+            supportsStreaming: true,
+            supportsReasoning: true,
+            contextWindow: 128000,
+            maxOutputTokens: 8192,
+          },
+          status: 'active',
+        };
+        modelRegistry.registerModel(passthroughModel);
+        return {
+          model: passthroughModel,
+          provider: omniProvider,
+          reason: `Passthrough model '${explicitModelId}' via OmniRoute gateway.`,
+        };
+      } catch {
+        // omniroute provider missing — fall through to strategy
+      }
     }
 
     const availableModels = modelRegistry.getAllModels().filter((m) => m.status === 'active');
