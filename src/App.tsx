@@ -30,6 +30,7 @@ import { CEODashboard } from './agents/ceo/components/CEODashboard';
 import { WebsiteIntelligenceView } from './intelligence/components/WebsiteIntelligenceView';
 import { TaskBoard } from './task-engine/components/TaskBoard';
 import { AgentRuntimeView } from './agent-runtime/components/AgentRuntimeView';
+import { SEOAgentView } from './agents/seo/components/SEOAgentView';
 
 const MainContent: React.FC = () => {
   const { activeTab, isSidebarCollapsed } = useApp();
@@ -52,6 +53,8 @@ const MainContent: React.FC = () => {
         return <TaskBoard />;
       case 'agent_runtime':
         return <AgentRuntimeView />;
+      case 'seo_agent':
+        return <SEOAgentView />;
       case 'reports':
         return <ReportsView />;
       case 'approvals':

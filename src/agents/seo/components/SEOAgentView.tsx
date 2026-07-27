@@ -1,0 +1,320 @@
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  CheckCircle2,
+  Play,
+  RefreshCw,
+  Search,
+} from 'lucide-react';
+import { useApp } from '../../../context/AppContext';
+import { SEOAgent } from '../core/SEOAgent';
+import type { SEOReport } from '../types/SEOReport';
+import type { SEOAudit } from '../types/SEOAudit';
+import type { SEOLogEntry } from '../core/SEOLogger';
+import { SEOScoreCard } from './SEOScoreCard';
+import { SEOIssueCard } from './SEOIssueCard';
+import { SEORecommendationCard } from './SEORecommendationCard';
+import { SEOAuditCard } from './SEOAuditCard';
+import { SEOHistoryView } from './SEOHistoryView';
+
+export const SEOAgentView: React.FC = () => {
+  const { websites, showToast } = useApp();
+  const agent = useMemo(() => SEOAgent.getInstance(), []);
+
+  const [selectedWebsiteId, setSelectedWebsiteId] = useState(websites[0]?.id || '');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  const [report, setReport] = useState<SEOReport | null>(
+    () => agent.getLatestReport() || null
+  );
+  const [activeAudit, setActiveAudit] = useState<SEOAudit | null>(null);
+  const [reports, setReports] = useState<SEOReport[]>([]);
+  const [audits, setAudits] = useState<SEOAudit[]>([]);
+  const [logs, setLogs] = useState<SEOLogEntry[]>([]);
+  const [metrics, setMetrics] = useState(agent.getMetrics());
+
+  const selectedWebsite = websites.find((w) => w.id === selectedWebsiteId) || websites[0];
+
+  const refresh = useCallback(() => {
+    setReports(agent.listReports());
+    setAudits(agent.listAudits());
+    setLogs(agent.getLogger().getLogs());
+    setMetrics(agent.getMetrics());
+  }, [agent]);
+
+  useEffect(() => {
+    refresh();
+    const unsub = agent.getLogger().subscribe(() => {
+      setLogs(agent.getLogger().getLogs());
+    });
+    return () => unsub();
+  }, [agent, refresh]);
+
+  useEffect(() => {
+    if (!selectedWebsiteId && websites[0]) {
+      setSelectedWebsiteId(websites[0].id);
+    }
+  }, [websites, selectedWebsiteId]);
+
+  const handleRunAudit = async () => {
+    if (!selectedWebsite) {
+      setMessage('Add a website first, then run Website Intelligence before SEO audit.');
+      return;
+    }
+
+    setBusy(true);
+    setMessage('');
+    setReport(null);
+    setActiveAudit(null);
+    showToast?.('SEO Agent gathering Website Intelligence & Memory...');
+
+    try {
+      const audit = await agent.runAudit({
+        websiteId: selectedWebsite.id,
+        domain: selectedWebsite.domain,
+        taskId: `seo-ui-${Date.now()}`,
+        taskTitle: `SEO audit for ${selectedWebsite.domain}`,
+        taskDescription: 'Production SEO employee audit via AI Engine',
+        requestedBy: 'SEO Agent UI',
+      });
+      setActiveAudit(audit);
+      if (audit.report) setReport(audit.report);
+      setMessage(audit.message);
+      showToast?.(`SEO audit complete — score ${audit.report?.overallSeoScore ?? 'n/a'}/100`);
+      refresh();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'SEO audit failed';
+      setMessage(msg);
+      setReport(null);
+      showToast?.(msg);
+      refresh();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const state = agent.getState();
+
+  return (
+    <div className="space-y-4 animate-fade-in">
+      <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex flex-col lg:flex-row lg:items-center justify-between gap-3 sticky top-16 z-10">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-[#4F46E5] flex-shrink-0">
+            <Search className="w-5 h-5 stroke-[2]" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-lg font-extrabold text-slate-900">SEO Agent</h1>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3" />
+                AI Employee · {state.status}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 font-medium truncate">
+              Audit on-page SEO via Website Intelligence → AI Engine → Memory
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <select
+            value={selectedWebsite?.id || ''}
+            onChange={(e) => setSelectedWebsiteId(e.target.value)}
+            className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none min-w-[180px]"
+          >
+            {websites.length === 0 ? (
+              <option value="">No websites</option>
+            ) : (
+              websites.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.domain}
+                </option>
+              ))
+            )}
+          </select>
+          <button
+            type="button"
+            disabled={busy || !selectedWebsite}
+            onClick={handleRunAudit}
+            className="px-3.5 py-2 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold text-xs shadow-sm cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+          >
+            {busy ? (
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Play className="w-3.5 h-3.5 fill-current" />
+            )}
+            {busy ? 'Running Audit...' : 'Run SEO Audit'}
+          </button>
+        </div>
+      </div>
+
+      {message ? (
+        <div className="px-3.5 py-2.5 rounded-xl bg-indigo-50 border border-indigo-100 text-xs font-semibold text-indigo-800">
+          {message}
+        </div>
+      ) : null}
+
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        {[
+          { label: 'Latest Score', value: metrics.latestScore, color: 'text-indigo-700' },
+          { label: 'Avg Score', value: metrics.averageScore, color: 'text-slate-800' },
+          { label: 'Critical', value: metrics.criticalIssueCount, color: 'text-rose-700' },
+          { label: 'Warnings', value: metrics.warningCount, color: 'text-amber-700' },
+          { label: 'Quick Wins', value: metrics.quickWinCount, color: 'text-emerald-700' },
+          { label: 'Audits', value: metrics.totalAudits, color: 'text-teal-700' },
+        ].map((m) => (
+          <div
+            key={m.label}
+            className="p-3 rounded-2xl bg-white border border-slate-200/80 shadow-2xs"
+          >
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{m.label}</p>
+            <p className={`text-xl font-extrabold mt-1 ${m.color}`}>{m.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+        <div className="xl:col-span-4 space-y-4">
+          {activeAudit ? <SEOAuditCard audit={activeAudit} /> : null}
+          <SEOHistoryView
+            reports={reports}
+            audits={audits}
+            selectedReportId={report?.id}
+            onSelectReport={(id) => {
+              const found = agent.getReport(id);
+              if (found) setReport(found);
+            }}
+          />
+
+          <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-3">
+            <h3 className="font-extrabold text-slate-900 text-sm border-b border-slate-100 pb-2">
+              Execution Logs
+            </h3>
+            {logs.length === 0 ? (
+              <p className="text-xs text-slate-400 font-medium text-center py-4">No logs yet.</p>
+            ) : (
+              <div className="space-y-1.5 max-h-64 overflow-y-auto font-mono">
+                {logs.slice(0, 40).map((log) => (
+                  <div
+                    key={log.id}
+                    className="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200/60 text-[10px]"
+                  >
+                    <span className="font-bold text-indigo-700">[{log.level}]</span>{' '}
+                    <span className="text-slate-400">
+                      {new Date(log.timestamp).toLocaleTimeString()}
+                    </span>
+                    <p className="text-slate-700 font-medium mt-0.5 whitespace-pre-wrap break-words">
+                      {log.message}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {report?.generatedTasks?.length ? (
+            <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-2">
+              <h3 className="font-extrabold text-slate-900 text-sm border-b border-slate-100 pb-2">
+                Generated Tasks
+              </h3>
+              {report.generatedTasks.map((t) => (
+                <div
+                  key={t.id}
+                  className="p-2 rounded-xl bg-slate-50 border border-slate-200/70 text-xs"
+                >
+                  <p className="font-extrabold text-slate-900">{t.title}</p>
+                  <p className="text-[10px] text-slate-500 font-medium mt-0.5">
+                    {t.priority} · {t.category} · {t.status}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="xl:col-span-8 space-y-4">
+          {report ? (
+            <>
+              <SEOScoreCard score={report.score} domain={report.domain} />
+
+              <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-2">
+                <h3 className="font-extrabold text-slate-900 text-sm">Executive Summary</h3>
+                <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                  {report.executiveSummary}
+                </p>
+                <p className="text-[10px] text-slate-400 font-medium">
+                  Impact: {report.estimatedSeoImpact} · Priority: {report.priority}
+                  {report.memoryItemId ? ` · Memory: ${report.memoryItemId}` : ''}
+                  {report.tokenUsage
+                    ? ` · Tokens: ${report.tokenUsage.totalTokens} (prompt ${report.tokenUsage.promptTokens} / completion ${report.tokenUsage.completionTokens})`
+                    : ''}
+                  {report.providerId
+                    ? ` · ${report.providerId}/${report.modelId || 'model'}`
+                    : ''}
+                  {' · Live AI JSON'}
+                </p>
+                {report.rawAiContent ? (
+                  <details className="mt-2">
+                    <summary className="text-[10px] font-bold text-indigo-600 cursor-pointer">
+                      Verify raw AI response (must match Network tab)
+                    </summary>
+                    <pre className="mt-2 p-2.5 rounded-xl bg-slate-900 text-slate-100 text-[10px] overflow-auto max-h-48 whitespace-pre-wrap break-words">
+                      {report.rawAiContent}
+                    </pre>
+                  </details>
+                ) : null}
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <SEOIssueCard
+                  title="Critical Issues"
+                  issues={report.criticalIssues}
+                  emptyLabel="No critical SEO issues."
+                />
+                <SEOIssueCard
+                  title="Warnings"
+                  issues={report.warnings}
+                  emptyLabel="No warnings."
+                />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <SEOIssueCard
+                  title="Opportunities"
+                  issues={report.opportunities}
+                  emptyLabel="No opportunities listed."
+                />
+                <SEORecommendationCard
+                  title="Quick Wins"
+                  recommendations={report.quickWins}
+                />
+              </div>
+
+              <SEORecommendationCard
+                title="Long-term Improvements"
+                recommendations={report.longTermImprovements}
+              />
+            </>
+          ) : (
+            <div className="p-8 rounded-2xl bg-white border border-dashed border-slate-200 text-center space-y-3">
+              <p className="text-sm font-extrabold text-slate-800">No SEO report yet</p>
+              <p className="text-xs text-slate-500 font-medium max-w-md mx-auto">
+                Select a website that already has Website Intelligence context, then run an SEO
+                audit. The agent uses Memory + Intelligence and calls AI Engine with structured
+                JSON only.
+              </p>
+              <button
+                type="button"
+                disabled={busy || !selectedWebsite}
+                onClick={handleRunAudit}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#4F46E5] text-white text-xs font-bold cursor-pointer disabled:opacity-50"
+              >
+                <Play className="w-3.5 h-3.5 fill-current" />
+                Run SEO Audit
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};

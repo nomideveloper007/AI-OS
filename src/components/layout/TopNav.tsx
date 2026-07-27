@@ -35,6 +35,10 @@ export const TopNav: React.FC = () => {
       title: 'Agent Runtime',
       subtitle: 'OS layer for AI employees — lifecycle, heartbeat, execution & recovery',
     },
+    seo_agent: {
+      title: 'SEO Agent',
+      subtitle: 'Production AI employee for SEO audits, issues, and actionable recommendations',
+    },
     reports: { title: 'Reports', subtitle: 'Website health, traffic, SEO & performance audits' },
     approvals: { title: 'Approvals', subtitle: 'Pending changes requiring administrator review' },
     activity: { title: 'Activity Logs', subtitle: 'System audit trail and platform event history' },

@@ -18,7 +18,8 @@ import {
   Crown,
   Brain,
   Network,
-  Server
+  Server,
+  Search
 } from 'lucide-react';
 
 interface NavItemDef {
@@ -49,6 +50,7 @@ export const Sidebar: React.FC = () => {
     { id: 'tasks', label: 'Tasks', icon: CheckSquare, badge: runningTasksCount > 0 ? runningTasksCount : undefined },
     { id: 'task_engine', label: 'Task Engine', icon: Network },
     { id: 'agent_runtime', label: 'Agent Runtime', icon: Server },
+    { id: 'seo_agent', label: 'SEO Agent', icon: Search },
     { id: 'reports', label: 'Reports', icon: BarChart3 },
     { id: 'approvals', label: 'Approvals', icon: ShieldCheck, badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : undefined },
     { id: 'activity', label: 'Activity', icon: Activity },
