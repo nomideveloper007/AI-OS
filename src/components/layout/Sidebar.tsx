@@ -17,7 +17,8 @@ import {
   Workflow,
   Crown,
   Brain,
-  Network
+  Network,
+  Server
 } from 'lucide-react';
 
 interface NavItemDef {
@@ -47,6 +48,7 @@ export const Sidebar: React.FC = () => {
     { id: 'ceo', label: 'CEO Agent', icon: Crown },
     { id: 'tasks', label: 'Tasks', icon: CheckSquare, badge: runningTasksCount > 0 ? runningTasksCount : undefined },
     { id: 'task_engine', label: 'Task Engine', icon: Network },
+    { id: 'agent_runtime', label: 'Agent Runtime', icon: Server },
     { id: 'reports', label: 'Reports', icon: BarChart3 },
     { id: 'approvals', label: 'Approvals', icon: ShieldCheck, badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : undefined },
     { id: 'activity', label: 'Activity', icon: Activity },

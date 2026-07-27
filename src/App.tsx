@@ -29,6 +29,7 @@ import { WorkflowView } from './workflow/components/WorkflowView';
 import { CEODashboard } from './agents/ceo/components/CEODashboard';
 import { WebsiteIntelligenceView } from './intelligence/components/WebsiteIntelligenceView';
 import { TaskBoard } from './task-engine/components/TaskBoard';
+import { AgentRuntimeView } from './agent-runtime/components/AgentRuntimeView';
 
 const MainContent: React.FC = () => {
   const { activeTab, isSidebarCollapsed } = useApp();
@@ -49,6 +50,8 @@ const MainContent: React.FC = () => {
         return <TasksView />;
       case 'task_engine':
         return <TaskBoard />;
+      case 'agent_runtime':
+        return <AgentRuntimeView />;
       case 'reports':
         return <ReportsView />;
       case 'approvals':

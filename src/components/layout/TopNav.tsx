@@ -31,6 +31,10 @@ export const TopNav: React.FC = () => {
       title: 'Task Engine',
       subtitle: 'Dispatch, prioritize, and monitor AI employee task execution',
     },
+    agent_runtime: {
+      title: 'Agent Runtime',
+      subtitle: 'OS layer for AI employees — lifecycle, heartbeat, execution & recovery',
+    },
     reports: { title: 'Reports', subtitle: 'Website health, traffic, SEO & performance audits' },
     approvals: { title: 'Approvals', subtitle: 'Pending changes requiring administrator review' },
     activity: { title: 'Activity Logs', subtitle: 'System audit trail and platform event history' },
