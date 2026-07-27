@@ -23,6 +23,7 @@ import { Toast } from './components/ui/Toast';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 
 import { AIEngineTestView } from './components/ai/AIEngineTestView';
+import { AIPlaygroundView } from './components/ai/AIPlaygroundView';
 import { MemoryView } from './memory/components/MemoryView';
 
 const MainContent: React.FC = () => {
@@ -46,6 +47,8 @@ const MainContent: React.FC = () => {
         return <ActivityView />;
       case 'ai_engine':
         return <AIEngineTestView />;
+      case 'playground':
+        return <AIPlaygroundView />;
       case 'memory':
         return <MemoryView />;
       case 'settings':

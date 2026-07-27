@@ -7,6 +7,7 @@ export type NavTab =
   | 'approvals' 
   | 'activity' 
   | 'ai_engine'
+  | 'playground'
   | 'memory'
   | 'settings';
 

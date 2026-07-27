@@ -30,6 +30,7 @@ export const TopNav: React.FC = () => {
     approvals: { title: 'Approvals', subtitle: 'Pending changes requiring administrator review' },
     activity: { title: 'Activity Logs', subtitle: 'System audit trail and platform event history' },
     ai_engine: { title: 'AI Engine', subtitle: 'Enterprise AI subsystem facade, model router & prompt manager' },
+    playground: { title: 'AI Playground', subtitle: 'Interactive prompt testbed for OmniRoute AI Engine' },
     memory: { title: 'Knowledge & Memory', subtitle: 'Single source of truth knowledge repository & long-term memory' },
     settings: { title: 'Settings', subtitle: 'System preferences, API keys & account management' }
   };

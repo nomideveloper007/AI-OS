@@ -8,6 +8,10 @@ export interface AIConfigOptions {
   enableStreaming: boolean;
   enableLogging: boolean;
   debugMode: boolean;
+  omniRouteBaseUrl: string;
+  omniRouteApiKey: string;
+  temperature: number;
+  maxTokens: number;
 }
 
 export class AIConfig {
@@ -15,14 +19,23 @@ export class AIConfig {
   private options: AIConfigOptions;
 
   private constructor() {
+    // Read from env or default
+    const envBaseUrl = typeof process !== 'undefined' && process.env?.OMNIROUTE_BASE_URL ? process.env.OMNIROUTE_BASE_URL : 'https://api.omniroute.ai/v1';
+    const envApiKey = typeof process !== 'undefined' && process.env?.OMNIROUTE_API_KEY ? process.env.OMNIROUTE_API_KEY : '';
+    const envModel = typeof process !== 'undefined' && process.env?.DEFAULT_MODEL ? process.env.DEFAULT_MODEL : 'omniroute-auto';
+
     this.options = {
-      defaultProviderId: DEFAULT_PROVIDER_ID,
-      defaultModelId: DEFAULT_MODEL_ID,
+      defaultProviderId: 'omniroute',
+      defaultModelId: envModel,
       timeoutMs: DEFAULT_TIMEOUT_MS,
       maxRetries: DEFAULT_MAX_RETRIES,
       enableStreaming: true,
       enableLogging: true,
-      debugMode: true
+      debugMode: true,
+      omniRouteBaseUrl: envBaseUrl,
+      omniRouteApiKey: envApiKey,
+      temperature: 0.7,
+      maxTokens: 2048
     };
   }
 
