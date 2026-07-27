@@ -28,6 +28,7 @@ import { MemoryView } from './memory/components/MemoryView';
 import { WorkflowView } from './workflow/components/WorkflowView';
 import { CEODashboard } from './agents/ceo/components/CEODashboard';
 import { WebsiteIntelligenceView } from './intelligence/components/WebsiteIntelligenceView';
+import { TaskBoard } from './task-engine/components/TaskBoard';
 
 const MainContent: React.FC = () => {
   const { activeTab, isSidebarCollapsed } = useApp();
@@ -46,6 +47,8 @@ const MainContent: React.FC = () => {
         return <CEODashboard />;
       case 'tasks':
         return <TasksView />;
+      case 'task_engine':
+        return <TaskBoard />;
       case 'reports':
         return <ReportsView />;
       case 'approvals':

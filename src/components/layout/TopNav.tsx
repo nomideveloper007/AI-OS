@@ -27,6 +27,10 @@ export const TopNav: React.FC = () => {
     agents: { title: 'Agents Fleet', subtitle: 'Autonomous AI workers, skill capabilities & role assignments' },
     ceo: { title: 'CEO Executive Office', subtitle: 'Chief Executive Officer AI Agent advisor, health audits & strategic planning' },
     tasks: { title: 'Tasks', subtitle: 'Task queue, background jobs & execution logs' },
+    task_engine: {
+      title: 'Task Engine',
+      subtitle: 'Dispatch, prioritize, and monitor AI employee task execution',
+    },
     reports: { title: 'Reports', subtitle: 'Website health, traffic, SEO & performance audits' },
     approvals: { title: 'Approvals', subtitle: 'Pending changes requiring administrator review' },
     activity: { title: 'Activity Logs', subtitle: 'System audit trail and platform event history' },

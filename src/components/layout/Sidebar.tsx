@@ -16,7 +16,8 @@ import {
   Zap,
   Workflow,
   Crown,
-  Brain
+  Brain,
+  Network
 } from 'lucide-react';
 
 interface NavItemDef {
@@ -45,6 +46,7 @@ export const Sidebar: React.FC = () => {
     { id: 'agents', label: 'Agents', icon: Bot },
     { id: 'ceo', label: 'CEO Agent', icon: Crown },
     { id: 'tasks', label: 'Tasks', icon: CheckSquare, badge: runningTasksCount > 0 ? runningTasksCount : undefined },
+    { id: 'task_engine', label: 'Task Engine', icon: Network },
     { id: 'reports', label: 'Reports', icon: BarChart3 },
     { id: 'approvals', label: 'Approvals', icon: ShieldCheck, badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : undefined },
     { id: 'activity', label: 'Activity', icon: Activity },

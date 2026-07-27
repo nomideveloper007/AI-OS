@@ -4,6 +4,7 @@ export type NavTab =
   | 'agents' 
   | 'ceo'
   | 'tasks' 
+  | 'task_engine'
   | 'reports' 
   | 'approvals' 
   | 'activity' 
