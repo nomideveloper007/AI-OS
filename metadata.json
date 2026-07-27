@@ -1,0 +1,6 @@
+{
+  "name": "AI OS",
+  "description": "AI Website Operating System - Control center for AI agents, website health, task management, approvals, and analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
