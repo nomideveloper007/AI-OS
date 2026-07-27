@@ -25,6 +25,7 @@ import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { AIEngineTestView } from './components/ai/AIEngineTestView';
 import { AIPlaygroundView } from './components/ai/AIPlaygroundView';
 import { MemoryView } from './memory/components/MemoryView';
+import { WorkflowView } from './workflow/components/WorkflowView';
 
 const MainContent: React.FC = () => {
   const { activeTab, isSidebarCollapsed } = useApp();
@@ -51,6 +52,8 @@ const MainContent: React.FC = () => {
         return <AIPlaygroundView />;
       case 'memory':
         return <MemoryView />;
+      case 'workflow':
+        return <WorkflowView />;
       case 'settings':
         return <SettingsView />;
       default:

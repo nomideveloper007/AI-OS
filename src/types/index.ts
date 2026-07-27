@@ -9,6 +9,7 @@ export type NavTab =
   | 'ai_engine'
   | 'playground'
   | 'memory'
+  | 'workflow'
   | 'settings';
 
 export type TaskStatus = 'Running' | 'Pending' | 'Completed' | 'Failed';

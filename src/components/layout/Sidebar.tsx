@@ -13,7 +13,8 @@ import {
   ChevronDown,
   Cpu,
   Database,
-  Zap
+  Zap,
+  Workflow
 } from 'lucide-react';
 
 interface NavItemDef {
@@ -46,6 +47,7 @@ export const Sidebar: React.FC = () => {
     { id: 'ai_engine', label: 'AI Engine', icon: Cpu },
     { id: 'playground', label: 'AI Playground', icon: Zap },
     { id: 'memory', label: 'Memory System', icon: Database },
+    { id: 'workflow', label: 'Workflows', icon: Workflow },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
