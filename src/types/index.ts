@@ -7,6 +7,7 @@ export type NavTab =
   | 'approvals' 
   | 'activity' 
   | 'ai_engine'
+  | 'memory'
   | 'settings';
 
 export type TaskStatus = 'Running' | 'Pending' | 'Completed' | 'Failed';

@@ -11,7 +11,8 @@ import {
   Activity, 
   Settings, 
   ChevronDown,
-  Cpu
+  Cpu,
+  Database
 } from 'lucide-react';
 
 interface NavItemDef {
@@ -42,6 +43,7 @@ export const Sidebar: React.FC = () => {
     { id: 'approvals', label: 'Approvals', icon: ShieldCheck, badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : undefined },
     { id: 'activity', label: 'Activity', icon: Activity },
     { id: 'ai_engine', label: 'AI Engine', icon: Cpu },
+    { id: 'memory', label: 'Memory System', icon: Database },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 

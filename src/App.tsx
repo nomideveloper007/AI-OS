@@ -23,6 +23,7 @@ import { Toast } from './components/ui/Toast';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 
 import { AIEngineTestView } from './components/ai/AIEngineTestView';
+import { MemoryView } from './memory/components/MemoryView';
 
 const MainContent: React.FC = () => {
   const { activeTab, isSidebarCollapsed } = useApp();
@@ -45,6 +46,8 @@ const MainContent: React.FC = () => {
         return <ActivityView />;
       case 'ai_engine':
         return <AIEngineTestView />;
+      case 'memory':
+        return <MemoryView />;
       case 'settings':
         return <SettingsView />;
       default:
