@@ -1,14 +1,20 @@
-import React from 'react';
-import { useApp } from '../../context/AppContext';
-import { FileCode, FileText, Globe, Image } from 'lucide-react';
+import React from "react";
+import { useApp } from "../../context/AppContext";
+import { FileCode, FileText, Globe, Image } from "lucide-react";
 
 export const PendingApprovalsCard: React.FC = () => {
   const { approvals, approveItem, rejectItem, setActiveTab } = useApp();
 
   const getItemIcon = (title: string) => {
-    if (title.toLowerCase().includes('title')) return <FileCode className="w-4 h-4 text-rose-500" />;
-    if (title.toLowerCase().includes('post') || title.toLowerCase().includes('blog')) return <FileText className="w-4 h-4 text-indigo-500" />;
-    if (title.toLowerCase().includes('page')) return <Globe className="w-4 h-4 text-blue-500" />;
+    if (title.toLowerCase().includes("title"))
+      return <FileCode className="w-4 h-4 text-rose-500" />;
+    if (
+      title.toLowerCase().includes("post") ||
+      title.toLowerCase().includes("blog")
+    )
+      return <FileText className="w-4 h-4 text-indigo-500" />;
+    if (title.toLowerCase().includes("page"))
+      return <Globe className="w-4 h-4 text-blue-500" />;
     return <Image className="w-4 h-4 text-emerald-500" />;
   };
 
@@ -19,8 +25,8 @@ export const PendingApprovalsCard: React.FC = () => {
         <h3 className="font-extrabold text-slate-900 text-base">
           Pending Approvals
         </h3>
-        <button 
-          onClick={() => setActiveTab('approvals')}
+        <button
+          onClick={() => setActiveTab("approvals")}
           className="text-xs font-bold text-[#4F46E5] hover:underline px-2 py-1 rounded-md hover:bg-indigo-50 transition-colors cursor-pointer"
         >
           View All
@@ -35,8 +41,8 @@ export const PendingApprovalsCard: React.FC = () => {
           </div>
         ) : (
           approvals.slice(0, 4).map((item) => (
-            <div 
-              key={item.id} 
+            <div
+              key={item.id}
               className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors"
             >
               <div className="flex items-center gap-3 min-w-0">
@@ -75,4 +81,3 @@ export const PendingApprovalsCard: React.FC = () => {
     </div>
   );
 };
-

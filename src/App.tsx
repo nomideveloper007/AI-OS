@@ -33,6 +33,9 @@ import { AgentRuntimeView } from './agent-runtime/components/AgentRuntimeView';
 import { SEOAgentView } from './agents/seo/components/SEOAgentView';
 import { CollaborationView } from './collaboration/components/CollaborationView';
 import { MissionControlView } from './orchestrator/components/MissionControlView';
+import { GitHubView } from './github/components/GitHubView';
+import { CodeIntelligenceView } from './code-intelligence/components/CodeIntelligenceView';
+import { ProjectKnowledgeView } from './project-knowledge/components/ProjectKnowledgeView';
 
 const MainContent: React.FC = () => {
   const { activeTab, isSidebarCollapsed } = useApp();
@@ -75,6 +78,12 @@ const MainContent: React.FC = () => {
         return <MemoryView />;
       case 'workflow':
         return <WorkflowView />;
+      case 'github':
+        return <GitHubView />;
+      case 'code_intelligence':
+        return <CodeIntelligenceView />;
+      case 'project_knowledge':
+        return <ProjectKnowledgeView />;
       case 'settings':
         return <SettingsView />;
       default:

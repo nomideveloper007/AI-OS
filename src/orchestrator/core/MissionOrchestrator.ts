@@ -1,13 +1,17 @@
-import type { CreateMissionInput, Mission, MissionWebsiteRef } from '../types/Mission';
-import { MISSION_STAGE_LABELS } from '../types/MissionStage';
-import { MissionRepository } from '../repositories/MissionRepository';
-import { MissionHistoryRepository } from '../repositories/MissionHistoryRepository';
-import { MissionState } from './MissionState';
-import { MissionRunner } from './MissionRunner';
-import { MissionScheduler } from './MissionScheduler';
-import { MissionLogger } from './MissionLogger';
-import { MissionEvents } from './MissionEvents';
-import { MissionMetrics } from './MissionMetrics';
+import type {
+  CreateMissionInput,
+  Mission,
+  MissionWebsiteRef,
+} from "../types/Mission";
+import { MISSION_STAGE_LABELS } from "../types/MissionStage";
+import { MissionRepository } from "../repositories/MissionRepository";
+import { MissionHistoryRepository } from "../repositories/MissionHistoryRepository";
+import { MissionState } from "./MissionState";
+import { MissionRunner } from "./MissionRunner";
+import { MissionScheduler } from "./MissionScheduler";
+import { MissionLogger } from "./MissionLogger";
+import { MissionEvents } from "./MissionEvents";
+import { MissionMetrics } from "./MissionMetrics";
 
 /**
  * Autonomous Mission Orchestrator facade.
@@ -27,7 +31,7 @@ export class MissionOrchestrator {
 
   private constructor() {
     this.scheduler.setRunner((id) => this.runner.run(id));
-    this.logger.info('Mission Orchestrator ready');
+    this.logger.info("Mission Orchestrator ready");
   }
 
   public static getInstance(): MissionOrchestrator {
@@ -47,15 +51,15 @@ export class MissionOrchestrator {
       title: input.title || `AI Company: ${website.domain}`,
       goal: input.goal,
       website,
-      status: 'pending',
-      currentStage: 'website_added',
+      status: "pending",
+      currentStage: "website_added",
       stages,
       progress: {
-        currentStage: 'website_added',
+        currentStage: "website_added",
         currentStageLabel: MISSION_STAGE_LABELS.website_added,
         overallPercent: 0,
         completedStages: 0,
-        totalStages: stages.filter((s) => s.stage !== 'completed').length,
+        totalStages: stages.filter((s) => s.stage !== "completed").length,
         elapsedMs: 0,
         estimatedRemainingMs: 0,
         runningAgents: [],
@@ -76,9 +80,14 @@ export class MissionOrchestrator {
     };
 
     this.repo.save(mission);
-    this.events.emit('mission_created', mission.id, `Mission created for ${website.domain}`, {
-      status: 'pending',
-    });
+    this.events.emit(
+      "mission_created",
+      mission.id,
+      `Mission created for ${website.domain}`,
+      {
+        status: "pending",
+      },
+    );
     this.logger.success(`Mission created ${mission.id}`, mission.id);
     return mission;
   }
@@ -92,7 +101,7 @@ export class MissionOrchestrator {
   public async startMission(missionId: string): Promise<Mission> {
     const mission = this.repo.get(missionId);
     if (!mission) throw new Error(`Mission not found: ${missionId}`);
-    if (mission.status === 'running' && this.runner.isRunning(missionId)) {
+    if (mission.status === "running" && this.runner.isRunning(missionId)) {
       return mission;
     }
 
@@ -101,7 +110,7 @@ export class MissionOrchestrator {
       ...mission,
       cancelRequested: false,
       pauseRequested: false,
-      status: mission.status === 'paused' ? 'paused' : 'pending',
+      status: mission.status === "paused" ? "paused" : "pending",
       updatedAt: new Date().toISOString(),
     });
 
@@ -110,7 +119,7 @@ export class MissionOrchestrator {
 
   public pauseMission(missionId: string): Mission {
     const mission = this.require(missionId);
-    if (!MissionState.canPause(mission) && mission.status !== 'running') {
+    if (!MissionState.canPause(mission) && mission.status !== "running") {
       // Allow setting pause flag even if between stages
     }
     const updated = this.repo.save({
@@ -118,48 +127,58 @@ export class MissionOrchestrator {
       pauseRequested: true,
       updatedAt: new Date().toISOString(),
     });
-    this.events.emit('mission_paused', missionId, 'Pause requested', { status: updated.status });
-    this.logger.info('Pause requested', missionId);
+    this.events.emit("mission_paused", missionId, "Pause requested", {
+      status: updated.status,
+    });
+    this.logger.info("Pause requested", missionId);
     return updated;
   }
 
   public async resumeMission(missionId: string): Promise<Mission> {
     const mission = this.require(missionId);
-    if (!MissionState.canResume(mission) && mission.status !== 'paused') {
-      throw new Error(`Mission cannot be resumed from status ${mission.status}`);
+    if (!MissionState.canResume(mission) && mission.status !== "paused") {
+      throw new Error(
+        `Mission cannot be resumed from status ${mission.status}`,
+      );
     }
     const updated = this.repo.save({
       ...mission,
-      status: 'paused',
+      status: "paused",
       pauseRequested: false,
       cancelRequested: false,
       updatedAt: new Date().toISOString(),
     });
-    this.events.emit('mission_resumed', missionId, 'Mission resumed', { status: 'running' });
+    this.events.emit("mission_resumed", missionId, "Mission resumed", {
+      status: "running",
+    });
     return this.runner.run(updated.id);
   }
 
   public cancelMission(missionId: string): Mission {
     const mission = this.require(missionId);
-    if (!MissionState.canCancel(mission) && mission.status === 'completed') {
-      throw new Error('Completed missions cannot be cancelled');
+    if (!MissionState.canCancel(mission) && mission.status === "completed") {
+      throw new Error("Completed missions cannot be cancelled");
     }
     const updated = this.repo.save({
       ...mission,
       cancelRequested: true,
       pauseRequested: false,
-      status: this.runner.isRunning(missionId) ? mission.status : 'cancelled',
-      completedAt: this.runner.isRunning(missionId) ? mission.completedAt : new Date().toISOString(),
+      status: this.runner.isRunning(missionId) ? mission.status : "cancelled",
+      completedAt: this.runner.isRunning(missionId)
+        ? mission.completedAt
+        : new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      lastError: this.runner.isRunning(missionId) ? mission.lastError : 'Cancelled by operator',
+      lastError: this.runner.isRunning(missionId)
+        ? mission.lastError
+        : "Cancelled by operator",
     });
-    if (!this.runner.isRunning(missionId) && updated.status === 'cancelled') {
+    if (!this.runner.isRunning(missionId) && updated.status === "cancelled") {
       this.historyRepo.record(updated);
-      this.events.emit('mission_cancelled', missionId, 'Mission cancelled', {
-        status: 'cancelled',
+      this.events.emit("mission_cancelled", missionId, "Mission cancelled", {
+        status: "cancelled",
       });
     }
-    this.logger.warn('Cancel requested', missionId);
+    this.logger.warn("Cancel requested", missionId);
     return updated;
   }
 
@@ -171,9 +190,14 @@ export class MissionOrchestrator {
       website: mission.website,
       maxRetriesPerStage: mission.maxRetriesPerStage,
     });
-    this.events.emit('mission_restarted', fresh.id, `Restarted from ${missionId}`, {
-      metadata: { previousMissionId: missionId },
-    });
+    this.events.emit(
+      "mission_restarted",
+      fresh.id,
+      `Restarted from ${missionId}`,
+      {
+        metadata: { previousMissionId: missionId },
+      },
+    );
     return this.startMission(fresh.id);
   }
 
@@ -210,7 +234,7 @@ export class MissionOrchestrator {
     return this.events.getEvents(missionId);
   }
 
-  public subscribe(listener: Parameters<MissionEvents['subscribe']>[0]) {
+  public subscribe(listener: Parameters<MissionEvents["subscribe"]>[0]) {
     return this.events.subscribe(listener);
   }
 
@@ -227,8 +251,11 @@ export class MissionOrchestrator {
   private normalizeWebsite(ref: MissionWebsiteRef): MissionWebsiteRef {
     return {
       ...ref,
-      domain: ref.domain || new URL(ref.url.startsWith('http') ? ref.url : `https://${ref.url}`).hostname,
-      url: ref.url.startsWith('http') ? ref.url : `https://${ref.url}`,
+      domain:
+        ref.domain ||
+        new URL(ref.url.startsWith("http") ? ref.url : `https://${ref.url}`)
+          .hostname,
+      url: ref.url.startsWith("http") ? ref.url : `https://${ref.url}`,
     };
   }
 }

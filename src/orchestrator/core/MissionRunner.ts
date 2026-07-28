@@ -1,14 +1,14 @@
-import type { Mission } from '../types/Mission';
-import type { MissionStageId } from '../types/MissionStage';
-import { MISSION_STAGE_ORDER } from '../types/MissionStage';
-import type { MissionResult } from '../types/MissionResult';
-import { MissionRepository } from '../repositories/MissionRepository';
-import { MissionHistoryRepository } from '../repositories/MissionHistoryRepository';
-import { MissionPipeline } from './MissionPipeline';
-import { MissionState } from './MissionState';
-import { MissionRecovery } from './MissionRecovery';
-import { MissionLogger } from './MissionLogger';
-import { MissionEvents } from './MissionEvents';
+import type { Mission } from "../types/Mission";
+import type { MissionStageId } from "../types/MissionStage";
+import { MISSION_STAGE_ORDER } from "../types/MissionStage";
+import type { MissionResult } from "../types/MissionResult";
+import { MissionRepository } from "../repositories/MissionRepository";
+import { MissionHistoryRepository } from "../repositories/MissionHistoryRepository";
+import { MissionPipeline } from "./MissionPipeline";
+import { MissionState } from "./MissionState";
+import { MissionRecovery } from "./MissionRecovery";
+import { MissionLogger } from "./MissionLogger";
+import { MissionEvents } from "./MissionEvents";
 
 /**
  * Runs mission stages sequentially with pause / resume / cancel / retry support.
@@ -40,41 +40,50 @@ export class MissionRunner {
       let mission = this.repo.get(missionId);
       if (!mission) throw new Error(`Mission not found: ${missionId}`);
 
-      if (mission.status === 'cancelled') return mission;
+      if (mission.status === "cancelled") return mission;
 
       mission = this.persist({
         ...mission,
-        status: 'running',
+        status: "running",
         pauseRequested: false,
         startedAt: mission.startedAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
-      this.events.emit('mission_started', mission.id, 'Mission started', { status: 'running' });
+      this.events.emit("mission_started", mission.id, "Mission started", {
+        status: "running",
+      });
 
-      const startIdx = Math.max(0, MISSION_STAGE_ORDER.indexOf(mission.currentStage));
+      const startIdx = Math.max(
+        0,
+        MISSION_STAGE_ORDER.indexOf(mission.currentStage),
+      );
 
       for (let i = startIdx; i < MISSION_STAGE_ORDER.length; i++) {
         mission = this.repo.get(missionId)!;
         if (mission.cancelRequested) {
-          return this.finalize(mission, 'cancelled', 'Mission cancelled by operator');
+          return this.finalize(
+            mission,
+            "cancelled",
+            "Mission cancelled by operator",
+          );
         }
         if (mission.pauseRequested) {
           return this.persist({
             ...mission,
-            status: 'paused',
+            status: "paused",
             updatedAt: new Date().toISOString(),
             progress: MissionState.computeProgress(mission),
           });
         }
 
         const stage = MISSION_STAGE_ORDER[i];
-        if (stage === 'completed') {
+        if (stage === "completed") {
           return this.complete(mission);
         }
 
         // Skip stages already completed (resume support)
         const record = mission.stages.find((s) => s.stage === stage);
-        if (record?.status === 'completed') continue;
+        if (record?.status === "completed") continue;
 
         const outcome = await this.executeStageWithRetries(missionId, stage);
         mission = this.repo.get(missionId)!;
@@ -92,11 +101,11 @@ export class MissionRunner {
         const next = MissionState.nextStage(stage);
         mission = this.persist({
           ...mission,
-          currentStage: next || 'completed',
+          currentStage: next || "completed",
           updatedAt: new Date().toISOString(),
           progress: MissionState.computeProgress({
             ...mission,
-            currentStage: next || 'completed',
+            currentStage: next || "completed",
           }),
         });
       }
@@ -110,7 +119,7 @@ export class MissionRunner {
 
   private async executeStageWithRetries(
     missionId: string,
-    stage: MissionStageId
+    stage: MissionStageId,
   ): Promise<{ ok: boolean } | null> {
     let mission = this.repo.get(missionId)!;
     let attempt = mission.stages.find((s) => s.stage === stage)?.attempt || 0;
@@ -118,18 +127,18 @@ export class MissionRunner {
     while (true) {
       mission = this.repo.get(missionId)!;
       if (mission.cancelRequested) {
-        this.finalize(mission, 'cancelled', 'Cancelled during stage');
+        this.finalize(mission, "cancelled", "Cancelled during stage");
         return null;
       }
       if (mission.pauseRequested) {
         this.persist({
           ...mission,
-          status: 'paused',
+          status: "paused",
           updatedAt: new Date().toISOString(),
           progress: MissionState.computeProgress(mission),
         });
-        this.events.emit('mission_paused', missionId, 'Mission paused', {
-          status: 'paused',
+        this.events.emit("mission_paused", missionId, "Mission paused", {
+          status: "paused",
           stage,
         });
         return null;
@@ -138,7 +147,7 @@ export class MissionRunner {
       attempt += 1;
       const startedAt = new Date().toISOString();
       mission = this.updateStage(mission, stage, {
-        status: 'running',
+        status: "running",
         attempt,
         startedAt,
         errorMessage: undefined,
@@ -146,10 +155,15 @@ export class MissionRunner {
       mission = this.persist({
         ...mission,
         currentStage: stage,
-        status: 'running',
-        progress: MissionState.computeProgress({ ...mission, currentStage: stage }),
+        status: "running",
+        progress: MissionState.computeProgress({
+          ...mission,
+          currentStage: stage,
+        }),
       });
-      this.events.emit('stage_started', missionId, `Stage started: ${stage}`, { stage });
+      this.events.emit("stage_started", missionId, `Stage started: ${stage}`, {
+        stage,
+      });
 
       let result;
       try {
@@ -157,14 +171,15 @@ export class MissionRunner {
       } catch (err) {
         result = {
           ok: false,
-          summary: 'Stage threw',
+          summary: "Stage threw",
           errorMessage: err instanceof Error ? err.message : String(err),
         };
       }
 
       mission = this.repo.get(missionId)!;
       const finishedAt = new Date().toISOString();
-      const durationMs = new Date(finishedAt).getTime() - new Date(startedAt).getTime();
+      const durationMs =
+        new Date(finishedAt).getTime() - new Date(startedAt).getTime();
 
       if (result.ok) {
         if (result.patch) {
@@ -184,7 +199,7 @@ export class MissionRunner {
             ...mission,
             result: {
               ...(mission.result || {
-                executiveSummary: '',
+                executiveSummary: "",
                 taskIds: [],
                 memoryItemIds: [],
                 keyFindings: [],
@@ -198,7 +213,7 @@ export class MissionRunner {
         }
 
         mission = this.updateStage(mission, stage, {
-          status: 'completed',
+          status: "completed",
           attempt,
           finishedAt,
           durationMs,
@@ -210,14 +225,16 @@ export class MissionRunner {
           progress: MissionState.computeProgress(mission),
           updatedAt: finishedAt,
         });
-        this.events.emit('stage_completed', missionId, result.summary, { stage });
+        this.events.emit("stage_completed", missionId, result.summary, {
+          stage,
+        });
         this.logger.success(result.summary, missionId, stage);
         return { ok: true };
       }
 
       // Failure path
       mission = this.updateStage(mission, stage, {
-        status: 'failed',
+        status: "failed",
         attempt,
         finishedAt,
         durationMs,
@@ -237,75 +254,89 @@ export class MissionRunner {
         progress: MissionState.computeProgress(mission),
         updatedAt: finishedAt,
       });
-      this.events.emit('stage_failed', missionId, result.errorMessage || result.summary, {
-        stage,
-      });
+      this.events.emit(
+        "stage_failed",
+        missionId,
+        result.errorMessage || result.summary,
+        {
+          stage,
+        },
+      );
 
       const action = this.recovery.onStageFailure(
         mission,
         stage,
         result.errorMessage || result.summary,
-        attempt
+        attempt,
       );
 
-      if (action === 'retry') {
+      if (action === "retry") {
         await this.delay(800 * attempt);
         continue;
       }
 
-      if (action === 'pause') {
+      if (action === "pause") {
         mission = this.persist({
           ...mission,
-          status: 'paused',
+          status: "paused",
           pauseRequested: false,
           updatedAt: new Date().toISOString(),
           progress: MissionState.computeProgress(mission),
         });
         this.events.emit(
-          'mission_paused',
+          "mission_paused",
           missionId,
           `Paused after ${stage} failure (state preserved)`,
-          { status: 'paused', stage }
+          { status: "paused", stage },
         );
         return null;
       }
 
-      return this.finalize(
-        mission,
-        'failed',
-        result.errorMessage || `Stage ${stage} failed`
-      ), null;
+      return (
+        this.finalize(
+          mission,
+          "failed",
+          result.errorMessage || `Stage ${stage} failed`,
+        ),
+        null
+      );
     }
   }
 
   private complete(mission: Mission): Mission {
-    const finished = this.updateStage(mission, 'completed', {
-      status: 'completed',
+    const finished = this.updateStage(mission, "completed", {
+      status: "completed",
       attempt: 1,
       finishedAt: new Date().toISOString(),
-      summary: 'All stages finished',
+      summary: "All stages finished",
     });
     const done = this.persist({
       ...finished,
-      status: 'completed',
-      currentStage: 'completed',
+      status: "completed",
+      currentStage: "completed",
       completedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       progress: {
-        ...MissionState.computeProgress({ ...finished, status: 'completed', currentStage: 'completed' }),
+        ...MissionState.computeProgress({
+          ...finished,
+          status: "completed",
+          currentStage: "completed",
+        }),
         overallPercent: 100,
       },
     });
     this.history.record(done);
-    this.events.emit('mission_completed', done.id, 'Mission completed', { status: 'completed' });
-    this.logger.success(`Mission ${done.id} completed`, done.id, 'completed');
+    this.events.emit("mission_completed", done.id, "Mission completed", {
+      status: "completed",
+    });
+    this.logger.success(`Mission ${done.id} completed`, done.id, "completed");
     return done;
   }
 
   private finalize(
     mission: Mission,
-    status: 'failed' | 'cancelled',
-    message: string
+    status: "failed" | "cancelled",
+    message: string,
   ): Mission {
     const done = this.persist({
       ...mission,
@@ -319,10 +350,10 @@ export class MissionRunner {
     });
     this.history.record(done);
     this.events.emit(
-      status === 'failed' ? 'mission_failed' : 'mission_cancelled',
+      status === "failed" ? "mission_failed" : "mission_cancelled",
       done.id,
       message,
-      { status }
+      { status },
     );
     return done;
   }
@@ -330,11 +361,13 @@ export class MissionRunner {
   private updateStage(
     mission: Mission,
     stage: MissionStageId,
-    patch: Partial<Mission['stages'][number]>
+    patch: Partial<Mission["stages"][number]>,
   ): Mission {
     return {
       ...mission,
-      stages: mission.stages.map((s) => (s.stage === stage ? { ...s, ...patch } : s)),
+      stages: mission.stages.map((s) =>
+        s.stage === stage ? { ...s, ...patch } : s,
+      ),
     };
   }
 

@@ -1,11 +1,11 @@
-import React from 'react';
-import { StatusCardRow } from './StatusCard';
-import { WebsiteHealthCard } from './WebsiteHealthCard';
-import { TrafficOverviewCard } from './TrafficOverviewCard';
-import { AiActivityCard } from './AiActivityCard';
-import { RecentTasksCard } from './RecentTasksCard';
-import { PendingApprovalsCard } from './PendingApprovalsCard';
-import { QuickActionsCard } from './QuickActionsCard';
+import React from "react";
+import { StatusCardRow } from "./StatusCard";
+import { WebsiteHealthCard } from "./WebsiteHealthCard";
+import { TrafficOverviewCard } from "./TrafficOverviewCard";
+import { AiActivityCard } from "./AiActivityCard";
+import { RecentTasksCard } from "./RecentTasksCard";
+import { PendingApprovalsCard } from "./PendingApprovalsCard";
+import { QuickActionsCard } from "./QuickActionsCard";
 
 export const DashboardView: React.FC = () => {
   return (

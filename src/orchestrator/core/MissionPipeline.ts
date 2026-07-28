@@ -1,24 +1,24 @@
-import type { Mission } from '../types/Mission';
-import type { MissionStageId } from '../types/MissionStage';
-import type { MissionResult } from '../types/MissionResult';
-import { MissionContext } from './MissionContext';
-import { MissionLogger } from './MissionLogger';
-import { WebsiteScanner } from '../../scanner/core/WebsiteScanner';
-import { ScanRepository } from '../../scanner/repositories/ScanRepository';
-import { WebsiteIntelligenceEngine } from '../../intelligence/core/WebsiteIntelligenceEngine';
-import { CEOAgent } from '../../agents/ceo/CEOAgent';
-import { TaskEngine } from '../../task-engine/core/TaskEngine';
-import { CollaborationEngine } from '../../collaboration/core/CollaborationEngine';
-import { AgentRuntime } from '../../agent-runtime/core/AgentRuntime';
-import { MemoryManager } from '../../memory/core/MemoryManager';
+import type { Mission } from "../types/Mission";
+import type { MissionStageId } from "../types/MissionStage";
+import type { MissionResult } from "../types/MissionResult";
+import { MissionContext } from "./MissionContext";
+import { MissionLogger } from "./MissionLogger";
+import { WebsiteScanner } from "../../scanner/core/WebsiteScanner";
+import { ScanRepository } from "../../scanner/repositories/ScanRepository";
+import { WebsiteIntelligenceEngine } from "../../intelligence/core/WebsiteIntelligenceEngine";
+import { CEOAgent } from "../../agents/ceo/CEOAgent";
+import { TaskEngine } from "../../task-engine/core/TaskEngine";
+import { CollaborationEngine } from "../../collaboration/core/CollaborationEngine";
+import { AgentRuntime } from "../../agent-runtime/core/AgentRuntime";
+import { MemoryManager } from "../../memory/core/MemoryManager";
 
 export interface StageOutcome {
   ok: boolean;
   summary: string;
   artifactIds?: string[];
   errorMessage?: string;
-  patch?: Partial<Mission['artifacts']>;
-  progressPatch?: Partial<Mission['progress']>;
+  patch?: Partial<Mission["artifacts"]>;
+  progressPatch?: Partial<Mission["progress"]>;
   resultPatch?: Partial<MissionResult>;
 }
 
@@ -37,33 +37,40 @@ export class MissionPipeline {
   private runtime = AgentRuntime.getInstance();
   private memory = MemoryManager.getInstance();
 
-  public async runStage(mission: Mission, stage: MissionStageId): Promise<StageOutcome> {
+  public async runStage(
+    mission: Mission,
+    stage: MissionStageId,
+  ): Promise<StageOutcome> {
     this.logger.info(`Pipeline stage: ${stage}`, mission.id, stage);
     switch (stage) {
-      case 'website_added':
+      case "website_added":
         return this.stageWebsiteAdded(mission);
-      case 'scanning':
+      case "scanning":
         return this.stageScanning(mission);
-      case 'website_intelligence':
+      case "website_intelligence":
         return this.stageIntelligence(mission);
-      case 'ceo_planning':
+      case "ceo_planning":
         return this.stageCeoPlanning(mission);
-      case 'task_creation':
+      case "task_creation":
         return this.stageTaskCreation(mission);
-      case 'collaboration':
+      case "collaboration":
         return this.stageCollaboration(mission);
-      case 'execution':
+      case "execution":
         return this.stageExecution(mission);
-      case 'aggregation':
+      case "aggregation":
         return this.stageAggregation(mission);
-      case 'memory_update':
+      case "memory_update":
         return this.stageMemoryUpdate(mission);
-      case 'report_generation':
+      case "report_generation":
         return this.stageReportGeneration(mission);
-      case 'completed':
-        return { ok: true, summary: 'Mission completed.' };
+      case "completed":
+        return { ok: true, summary: "Mission completed." };
       default:
-        return { ok: false, summary: 'Unknown stage', errorMessage: `Unknown stage: ${stage}` };
+        return {
+          ok: false,
+          summary: "Unknown stage",
+          errorMessage: `Unknown stage: ${stage}`,
+        };
     }
   }
 
@@ -72,8 +79,8 @@ export class MissionPipeline {
     if (!w?.id || !w.domain || !w.url) {
       return {
         ok: false,
-        summary: 'Website missing',
-        errorMessage: 'Mission requires a valid website id, domain, and url.',
+        summary: "Website missing",
+        errorMessage: "Mission requires a valid website id, domain, and url.",
       };
     }
     return {
@@ -86,10 +93,10 @@ export class MissionPipeline {
   private async stageScanning(mission: Mission): Promise<StageOutcome> {
     const website = MissionContext.toWebsiteItem(mission.website);
     const scan = await this.scanner.scan(website);
-    if (scan.status !== 'completed') {
+    if (scan.status !== "completed") {
       return {
         ok: false,
-        summary: 'Scan failed',
+        summary: "Scan failed",
         errorMessage: scan.error_message || `Scan status: ${scan.status}`,
         artifactIds: [scan.id],
         patch: { scanId: scan.id },
@@ -109,8 +116,9 @@ export class MissionPipeline {
     if (!scanId) {
       return {
         ok: false,
-        summary: 'No scan artifact',
-        errorMessage: 'Website Intelligence requires a completed scan artifact.',
+        summary: "No scan artifact",
+        errorMessage:
+          "Website Intelligence requires a completed scan artifact.",
       };
     }
 
@@ -119,7 +127,7 @@ export class MissionPipeline {
     if (!scan) {
       return {
         ok: false,
-        summary: 'Scan not found for intelligence',
+        summary: "Scan not found for intelligence",
         errorMessage: `Could not load scan ${scanId} for Website Intelligence.`,
       };
     }
@@ -145,7 +153,9 @@ export class MissionPipeline {
       artifactIds: [report.id, ...taskIds],
       patch: {
         ceoReportId: report.id,
-        taskIds: [...new Set([...(mission.artifacts.taskIds || []), ...taskIds])],
+        taskIds: [
+          ...new Set([...(mission.artifacts.taskIds || []), ...taskIds]),
+        ],
       },
       progressPatch: {
         completedTasks: taskIds.length,
@@ -160,7 +170,7 @@ export class MissionPipeline {
       .filter(
         (t) =>
           t.websiteDomain === mission.website.domain ||
-          (mission.artifacts.taskIds || []).includes(t.id)
+          (mission.artifacts.taskIds || []).includes(t.id),
       );
 
     let createdId: string | undefined;
@@ -168,13 +178,13 @@ export class MissionPipeline {
       const created = this.tasks.createTask({
         title: `Mission: ${mission.goal.slice(0, 80)}`,
         description: `Orchestrated mission ${mission.id} for ${mission.website.domain}`,
-        priority: 'high',
-        category: 'Business',
+        priority: "high",
+        category: "Business",
         websiteDomain: mission.website.domain,
         websiteId: mission.website.id,
-        requestedBy: 'Mission Orchestrator',
+        requestedBy: "Mission Orchestrator",
         approvalRequired: false,
-        payload: { source: 'mission_orchestrator', missionId: mission.id },
+        payload: { source: "mission_orchestrator", missionId: mission.id },
       });
       createdId = created.id;
     }
@@ -193,8 +203,11 @@ export class MissionPipeline {
       artifactIds: allIds,
       patch: { taskIds: allIds },
       progressPatch: {
-        completedTasks: this.tasks.listTasks().filter((t) => t.status === 'completed').length,
-        failedTasks: this.tasks.listTasks().filter((t) => t.status === 'failed').length,
+        completedTasks: this.tasks
+          .listTasks()
+          .filter((t) => t.status === "completed").length,
+        failedTasks: this.tasks.listTasks().filter((t) => t.status === "failed")
+          .length,
       },
     };
   }
@@ -205,15 +218,15 @@ export class MissionPipeline {
       objective: mission.goal,
       domain: mission.website.domain,
       websiteId: mission.website.id,
-      requestedBy: 'Mission Orchestrator',
-      priority: 'high',
+      requestedBy: "Mission Orchestrator",
+      priority: "high",
     });
 
-    if (session.status === 'failed') {
+    if (session.status === "failed") {
       return {
         ok: false,
-        summary: 'Collaboration failed',
-        errorMessage: session.errorMessage || 'Collaboration session failed',
+        summary: "Collaboration failed",
+        errorMessage: session.errorMessage || "Collaboration session failed",
         artifactIds: [session.id],
         patch: { collaborationSessionId: session.id },
       };
@@ -223,7 +236,9 @@ export class MissionPipeline {
     return {
       ok: true,
       summary: `Collaboration ${session.id} completed (${session.participants.length} agents)`,
-      artifactIds: [session.id, session.finalReport?.id].filter(Boolean) as string[],
+      artifactIds: [session.id, session.finalReport?.id].filter(
+        Boolean,
+      ) as string[],
       patch: { collaborationSessionId: session.id },
       progressPatch: { runningAgents: agents },
       resultPatch: {
@@ -250,11 +265,11 @@ export class MissionPipeline {
         (t) =>
           taskIds.includes(t.id) ||
           t.websiteDomain === mission.website.domain ||
-          t.payload?.source === 'mission_orchestrator' ||
-          t.payload?.source === 'ceo_strategic_planner' ||
-          t.payload?.source === 'collaboration_engine'
+          t.payload?.source === "mission_orchestrator" ||
+          t.payload?.source === "ceo_strategic_planner" ||
+          t.payload?.source === "collaboration_engine",
       )
-      .filter((t) => t.status !== 'completed' && t.status !== 'cancelled')
+      .filter((t) => t.status !== "completed" && t.status !== "cancelled")
       .slice(0, 3);
 
     for (const task of pending) {
@@ -269,14 +284,14 @@ export class MissionPipeline {
             websiteId: task.websiteId || mission.website.id,
             websiteDomain: task.websiteDomain || mission.website.domain,
           },
-          task.assignedAgentId
+          task.assignedAgentId,
         );
         executionIds.push(exec.id);
       } catch (err) {
         this.logger.warn(
           `Runtime execution skipped for ${task.id}: ${err instanceof Error ? err.message : String(err)}`,
           mission.id,
-          'execution'
+          "execution",
         );
       }
     }
@@ -288,7 +303,7 @@ export class MissionPipeline {
       this.logger.warn(
         `Task Engine processQueue: ${err instanceof Error ? err.message : String(err)}`,
         mission.id,
-        'execution'
+        "execution",
       );
     }
 
@@ -299,7 +314,10 @@ export class MissionPipeline {
       artifactIds: executionIds,
       patch: {
         runtimeExecutionIds: [
-          ...new Set([...(mission.artifacts.runtimeExecutionIds || []), ...executionIds]),
+          ...new Set([
+            ...(mission.artifacts.runtimeExecutionIds || []),
+            ...executionIds,
+          ]),
         ],
       },
       progressPatch: {
@@ -307,7 +325,7 @@ export class MissionPipeline {
         failedTasks: metrics.failed,
         runningAgents: this.runtime
           .listAgents()
-          .filter((a) => a.status === 'Busy' || a.status === 'Idle')
+          .filter((a) => a.status === "Busy" || a.status === "Idle")
           .map((a) => a.name)
           .slice(0, 8),
       },
@@ -316,7 +334,9 @@ export class MissionPipeline {
 
   private stageAggregation(mission: Mission): StageOutcome {
     const ceo = mission.artifacts.ceoReportId
-      ? this.ceo.history.getReports().find((r) => r.id === mission.artifacts.ceoReportId)
+      ? this.ceo.history
+          .getReports()
+          .find((r) => r.id === mission.artifacts.ceoReportId)
       : this.ceo.getLatestStrategicPlan(mission.website.domain)
         ? this.ceo.history.getLatestReport()
         : this.ceo.history.getLatestReport();
@@ -335,23 +355,26 @@ export class MissionPipeline {
     ];
 
     const confidence = Math.round(
-      ((ceo?.confidenceScore || 0) + (collab?.finalReport?.confidenceScore || 0)) /
-        (ceo && collab?.finalReport ? 2 : 1) || 70
+      ((ceo?.confidenceScore || 0) +
+        (collab?.finalReport?.confidenceScore || 0)) /
+        (ceo && collab?.finalReport ? 2 : 1) || 70,
     );
 
     const executiveSummary = [
       `Mission "${mission.title}" for ${mission.website.domain}.`,
       `Goal: ${mission.goal}.`,
-      ceo ? `CEO health ${ceo.healthScores.overall}/100.` : '',
-      collab?.finalReport ? `Collaboration: ${collab.finalReport.executiveSummary.slice(0, 180)}` : '',
-      `Artifacts: scan=${mission.artifacts.scanId || 'n/a'}, WI=${mission.artifacts.intelligenceContextId || 'n/a'}, CEO=${mission.artifacts.ceoReportId || 'n/a'}, Collab=${mission.artifacts.collaborationSessionId || 'n/a'}.`,
+      ceo ? `CEO health ${ceo.healthScores.overall}/100.` : "",
+      collab?.finalReport
+        ? `Collaboration: ${collab.finalReport.executiveSummary.slice(0, 180)}`
+        : "",
+      `Artifacts: scan=${mission.artifacts.scanId || "n/a"}, WI=${mission.artifacts.intelligenceContextId || "n/a"}, CEO=${mission.artifacts.ceoReportId || "n/a"}, Collab=${mission.artifacts.collaborationSessionId || "n/a"}.`,
     ]
       .filter(Boolean)
-      .join(' ');
+      .join(" ");
 
     return {
       ok: true,
-      summary: 'Aggregated CEO + Collaboration outputs',
+      summary: "Aggregated CEO + Collaboration outputs",
       resultPatch: {
         executiveSummary,
         scanId: mission.artifacts.scanId,
@@ -376,24 +399,24 @@ export class MissionPipeline {
 
     const item = this.memory.createMemoryItem({
       title: `Mission Memory: ${mission.title}`,
-      description: summary.slice(0, 140) + '...',
+      description: summary.slice(0, 140) + "...",
       content: [
         summary,
-        '',
+        "",
         `Goal: ${mission.goal}`,
         `Domain: ${mission.website.domain}`,
         `Stages completed: ${mission.progress.completedStages}/${mission.progress.totalStages}`,
-        `CEO: ${mission.artifacts.ceoReportId || 'n/a'}`,
-        `Collaboration: ${mission.artifacts.collaborationSessionId || 'n/a'}`,
-        `Tasks: ${(mission.artifacts.taskIds || []).join(', ') || 'none'}`,
-      ].join('\n'),
-      type: 'Project Memory',
-      category: 'Reports',
-      priority: 'High',
-      visibility: 'Global',
+        `CEO: ${mission.artifacts.ceoReportId || "n/a"}`,
+        `Collaboration: ${mission.artifacts.collaborationSessionId || "n/a"}`,
+        `Tasks: ${(mission.artifacts.taskIds || []).join(", ") || "none"}`,
+      ].join("\n"),
+      type: "Project Memory",
+      category: "Reports",
+      priority: "High",
+      visibility: "Global",
       website: mission.website.domain,
-      tags: ['Mission', 'Orchestrator', 'Memory Update'],
-      source: 'Mission Orchestrator',
+      tags: ["Mission", "Orchestrator", "Memory Update"],
+      source: "Mission Orchestrator",
     });
 
     return {
@@ -401,43 +424,50 @@ export class MissionPipeline {
       summary: `Memory item ${item.id} stored`,
       artifactIds: [item.id],
       patch: {
-        memoryItemIds: [...new Set([...(mission.artifacts.memoryItemIds || []), item.id])],
+        memoryItemIds: [
+          ...new Set([...(mission.artifacts.memoryItemIds || []), item.id]),
+        ],
       },
       resultPatch: {
-        memoryItemIds: [...new Set([...(mission.result?.memoryItemIds || []), item.id])],
+        memoryItemIds: [
+          ...new Set([...(mission.result?.memoryItemIds || []), item.id]),
+        ],
       },
     };
   }
 
   private stageReportGeneration(mission: Mission): StageOutcome {
     const reportBody = [
-      mission.result?.executiveSummary || `Mission report for ${mission.website.domain}`,
-      '',
-      'Key Findings:',
+      mission.result?.executiveSummary ||
+        `Mission report for ${mission.website.domain}`,
+      "",
+      "Key Findings:",
       ...(mission.result?.keyFindings || []).map((f) => `- ${f}`),
-      '',
-      'Recommendations:',
+      "",
+      "Recommendations:",
       ...(mission.result?.recommendations || []).map((r) => `- ${r}`),
-      '',
+      "",
       `Confidence: ${mission.result?.confidenceScore ?? 0}%`,
-      `Scan: ${mission.artifacts.scanId || 'n/a'}`,
-      `Intelligence: ${mission.artifacts.intelligenceContextId || 'n/a'}`,
-      `CEO Report: ${mission.artifacts.ceoReportId || 'n/a'}`,
-      `Collaboration: ${mission.artifacts.collaborationSessionId || 'n/a'}`,
-    ].join('\n');
+      `Scan: ${mission.artifacts.scanId || "n/a"}`,
+      `Intelligence: ${mission.artifacts.intelligenceContextId || "n/a"}`,
+      `CEO Report: ${mission.artifacts.ceoReportId || "n/a"}`,
+      `Collaboration: ${mission.artifacts.collaborationSessionId || "n/a"}`,
+    ].join("\n");
 
     // Reports surface is Memory category "Reports" in this codebase (no separate Reports engine API)
     const item = this.memory.createMemoryItem({
       title: `AI Company Mission Report (${mission.website.domain})`,
-      description: (mission.result?.executiveSummary || mission.goal).slice(0, 140) + '...',
+      description:
+        (mission.result?.executiveSummary || mission.goal).slice(0, 140) +
+        "...",
       content: reportBody,
-      type: 'Project Memory',
-      category: 'Reports',
-      priority: 'Critical',
-      visibility: 'Global',
+      type: "Project Memory",
+      category: "Reports",
+      priority: "Critical",
+      visibility: "Global",
       website: mission.website.domain,
-      tags: ['Mission Report', 'Executive Report', 'Orchestrator'],
-      source: 'Mission Orchestrator',
+      tags: ["Mission Report", "Executive Report", "Orchestrator"],
+      source: "Mission Orchestrator",
     });
 
     return {
@@ -445,11 +475,15 @@ export class MissionPipeline {
       summary: `Executive report ${item.id} published to Reports/Memory`,
       artifactIds: [item.id],
       patch: {
-        memoryItemIds: [...new Set([...(mission.artifacts.memoryItemIds || []), item.id])],
+        memoryItemIds: [
+          ...new Set([...(mission.artifacts.memoryItemIds || []), item.id]),
+        ],
       },
       resultPatch: {
         reportMemoryId: item.id,
-        memoryItemIds: [...new Set([...(mission.result?.memoryItemIds || []), item.id])],
+        memoryItemIds: [
+          ...new Set([...(mission.result?.memoryItemIds || []), item.id]),
+        ],
         generatedAt: new Date().toISOString(),
       },
     };

@@ -17,6 +17,9 @@ export type NavTab =
   | 'website_intelligence'
   | 'memory'
   | 'workflow'
+  | 'github'
+  | 'code_intelligence'
+  | 'project_knowledge'
   | 'settings';
 
 export type TaskStatus = 'Running' | 'Pending' | 'Completed' | 'Failed';
