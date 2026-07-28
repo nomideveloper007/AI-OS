@@ -19,10 +19,12 @@ import {
   FileText,
   Sparkles,
   Map,
+  Globe,
+  ChevronDown
 } from 'lucide-react';
 
 export const CEODashboard: React.FC = () => {
-  const { setActiveTab, showToast, websites, selectedWebsiteId } = useApp();
+  const { setActiveTab, showToast, websites, selectedWebsiteId, setSelectedWebsiteId } = useApp();
   const ceoAgent = CEOAgent.getInstance();
   const [report, setReport] = useState<CEOExecutiveReport | null>(
     () => ceoAgent.history.getLatestReport() || null
@@ -32,20 +34,17 @@ export const CEODashboard: React.FC = () => {
     'overview' | 'strategy' | 'report' | 'tasks' | 'risks' | 'timeline'
   >('overview');
 
-  const resolveDomain = () => {
-    const selected = websites.find((w) => w.id === selectedWebsiteId);
-    return selected?.domain || websites[0]?.domain || 'tasktomoney.com';
-  };
+  const selectedWebsite = websites.find((w) => w.id === selectedWebsiteId) || websites[0];
+  const targetDomain = selectedWebsite?.domain || 'tasktomoney.com';
 
   const handleRunAnalysis = async () => {
     setIsAnalyzing(true);
-    const domain = resolveDomain();
-    showToast(`CEO Strategic Planner gathering context for ${domain}...`);
+    showToast(`CEO Strategic Planner gathering context for ${targetDomain}...`);
     try {
-      const newReport = await ceoAgent.runExecutiveAnalysis(domain);
+      const newReport = await ceoAgent.runExecutiveAnalysis(targetDomain);
       setReport(newReport);
       setActiveSubTab('strategy');
-      showToast('Strategic plan ready. Tasks registered for approval (not executed).');
+      showToast(`Strategic plan ready for ${targetDomain}. Tasks registered for approval.`);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       showToast(`CEO Planning Error: ${message}`);
@@ -73,43 +72,68 @@ export const CEODashboard: React.FC = () => {
   return (
     <div className="space-y-6 animate-fade-in text-xs">
       {/* Top Banner */}
-      <div className="p-6 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-[#4F46E5] text-2xl flex-shrink-0 shadow-2xs">
-            👑
-          </div>
-          <div>
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="text-xl font-extrabold text-slate-900">CEO Executive Agent Dashboard</h1>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                Strategic Planner (Plan Only)
-              </span>
+      <div className="p-6 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-[#4F46E5] text-2xl flex-shrink-0 shadow-2xs">
+              👑
             </div>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Company brain — business health, goals, roadmaps, and prioritized tasks. Execution belongs to
-              Task Engine & AI Employees.
-            </p>
+            <div>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h1 className="text-xl font-extrabold text-slate-900">CEO Executive Agent Dashboard</h1>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  Strategic Planner (Plan Only)
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                Company brain — business health, goals, roadmaps, and prioritized tasks. Execution belongs to Task Engine & AI Employees.
+              </p>
+            </div>
           </div>
+
+          <button
+            onClick={handleRunAnalysis}
+            disabled={isAnalyzing}
+            className="px-5 py-2.5 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white font-extrabold text-xs transition-all shadow-sm flex items-center gap-2 cursor-pointer disabled:opacity-50 self-start md:self-auto"
+          >
+            <Play className={`w-4 h-4 fill-current ${isAnalyzing ? 'animate-spin' : ''}`} />
+            {isAnalyzing ? 'Building Strategic Plan...' : `Run Strategic Planning for ${targetDomain}`}
+          </button>
         </div>
 
-        <button
-          onClick={handleRunAnalysis}
-          disabled={isAnalyzing}
-          className="px-5 py-2.5 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white font-extrabold text-xs transition-all shadow-sm flex items-center gap-2 cursor-pointer disabled:opacity-50 self-start md:self-auto"
-        >
-          <Play className={`w-4 h-4 fill-current ${isAnalyzing ? 'animate-spin' : ''}`} />
-          {isAnalyzing ? 'Building Strategic Plan...' : 'Run Strategic Planning'}
-        </button>
+        {/* Target Website Selection Bar */}
+        <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-50/70 p-3.5 rounded-xl border border-slate-200/60">
+          <div className="flex items-center gap-2">
+            <Globe className="w-4 h-4 text-[#4F46E5]" />
+            <span className="font-extrabold text-slate-800">Target Website for Analysis:</span>
+            <span className="font-bold text-[#4F46E5] underline font-mono">{targetDomain}</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="text-[11px] font-bold text-slate-500">Select Website:</label>
+            <select
+              value={selectedWebsiteId}
+              onChange={(e) => setSelectedWebsiteId(e.target.value)}
+              className="px-3 py-1.5 rounded-lg bg-white border border-slate-300 font-bold text-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer shadow-2xs"
+            >
+              {websites.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name} ({w.domain})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
 
       {/* Health Overview Scorecard */}
       {report ? (
         <HealthOverview scores={defaultScores} />
       ) : (
-        <div className="p-4 rounded-2xl bg-white border border-dashed border-slate-200 text-slate-500 font-semibold">
-          Run strategic planning to compute Business Health from Website Intelligence, Memory, and task
-          history.
+        <div className="p-4 rounded-2xl bg-white border border-dashed border-slate-200 text-slate-500 font-semibold flex items-center justify-between">
+          <span>Run strategic planning for <strong>{targetDomain}</strong> to compute Business Health from Website Intelligence, Memory, and task history.</span>
+          <span className="text-xs font-mono font-bold text-[#4F46E5] bg-indigo-50 px-2.5 py-1 rounded-lg">Target: {targetDomain}</span>
         </div>
       )}
 
@@ -157,14 +181,14 @@ export const CEODashboard: React.FC = () => {
             {defaultRisks.length > 0 ? (
               <RiskPanel risks={defaultRisks as never} />
             ) : (
-              <EmptyHint text="Risks appear after strategic planning." />
+              <EmptyHint text={`Risks for ${targetDomain} appear after strategic planning.`} />
             )}
           </div>
           <div className="lg:col-span-6 space-y-6">
             {defaultOpportunities.length > 0 ? (
               <OpportunityPanel opportunities={defaultOpportunities as never} />
             ) : (
-              <EmptyHint text="Opportunities appear after strategic planning." />
+              <EmptyHint text={`Opportunities for ${targetDomain} appear after strategic planning.`} />
             )}
           </div>
         </div>
@@ -174,7 +198,7 @@ export const CEODashboard: React.FC = () => {
         (strategicPlan ? (
           <StrategicPlanningPanel plan={strategicPlan} />
         ) : (
-          <EmptyHint text="No strategic plan yet. Run Strategic Planning to generate goals, roadmap, and priorities." />
+          <EmptyHint text={`No strategic plan for ${targetDomain} yet. Run Strategic Planning to generate goals, roadmap, and priorities.`} />
         ))}
 
       {activeSubTab === 'report' &&
@@ -182,12 +206,12 @@ export const CEODashboard: React.FC = () => {
           <ExecutiveReportView report={report} />
         ) : (
           <div className="p-8 text-center bg-white rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
-            <p className="text-sm font-extrabold text-slate-800">No report generated in this session yet.</p>
+            <p className="text-sm font-extrabold text-slate-800">No report generated for {targetDomain} in this session yet.</p>
             <button
               onClick={handleRunAnalysis}
               className="px-4 py-2 rounded-xl bg-[#4F46E5] text-white font-bold text-xs cursor-pointer"
             >
-              Run Strategic Planning Now
+              Run Strategic Planning for {targetDomain} Now
             </button>
           </div>
         ))}
@@ -196,7 +220,7 @@ export const CEODashboard: React.FC = () => {
         (defaultTasks.length > 0 ? (
           <TaskRecommendations tasks={defaultTasks} />
         ) : (
-          <EmptyHint text="Recommended tasks appear after planning (created in Task Engine, not executed)." />
+          <EmptyHint text={`Recommended tasks for ${targetDomain} appear after planning (created in Task Engine, not executed).`} />
         ))}
 
       {activeSubTab === 'risks' && (
