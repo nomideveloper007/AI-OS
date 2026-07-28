@@ -40,39 +40,74 @@ export const Sidebar: React.FC = () => {
   const pendingApprovalsCount = approvals.length;
   const runningTasksCount = tasks.filter((t) => t.status === "Running").length;
 
-  const navItems: NavItemDef[] = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { id: "websites", label: "Websites", icon: Globe },
-    { id: "website_intelligence", label: "Website Intelligence", icon: Brain },
-    { id: "agents", label: "Agents", icon: Bot },
-    { id: "ceo", label: "CEO Agent", icon: Crown },
+  interface NavSection {
+    title: string;
+    items: NavItemDef[];
+  }
+
+  const sections: NavSection[] = [
     {
-      id: "tasks",
-      label: "Tasks",
-      icon: CheckSquare,
-      badge: runningTasksCount > 0 ? runningTasksCount : undefined,
+      title: "1. Setup & Connect",
+      items: [
+        { id: "github", label: "Git Repositories", icon: Github },
+        { id: "websites", label: "Connected Websites", icon: Globe },
+      ],
     },
-    { id: "task_engine", label: "Task Engine", icon: Network },
-    { id: "agent_runtime", label: "Agent Runtime", icon: Server },
-    { id: "seo_agent", label: "SEO Agent", icon: Search },
-    { id: "collaboration", label: "Collaboration", icon: UsersRound },
-    { id: "mission_control", label: "Mission Control", icon: Rocket },
-    { id: "reports", label: "Reports", icon: BarChart3 },
     {
-      id: "approvals",
-      label: "Approvals",
-      icon: ShieldCheck,
-      badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : undefined,
+      title: "2. Strategic Planning",
+      items: [
+        { id: "ceo", label: "CEO Office", icon: Crown },
+        { id: "mission_control", label: "Mission Control", icon: Rocket },
+      ],
     },
-    { id: "activity", label: "Activity", icon: Activity },
-    { id: "ai_engine", label: "AI Engine", icon: Cpu },
-    { id: "playground", label: "AI Playground", icon: Zap },
-    { id: "memory", label: "Memory System", icon: Database },
-    { id: "workflow", label: "Workflows", icon: Workflow },
-    { id: "github", label: "GitHub Repositories", icon: Github },
-    { id: "code_intelligence", label: "Code Intelligence", icon: BrainCircuit },
-    { id: "project_knowledge", label: "Project Knowledge", icon: Brain },
-    { id: "settings", label: "Settings", icon: Settings },
+    {
+      title: "3. Execution Engine",
+      items: [
+        { id: "agents", label: "Agent Specialists", icon: Bot },
+        { id: "task_engine", label: "Task Engine", icon: Network },
+        {
+          id: "tasks",
+          label: "Tasks & Backlog",
+          icon: CheckSquare,
+          badge: runningTasksCount > 0 ? runningTasksCount : undefined,
+        },
+        { id: "agent_runtime", label: "Agent Runtime", icon: Server },
+        { id: "seo_agent", label: "SEO Agent", icon: Search },
+        { id: "collaboration", label: "Collaboration", icon: UsersRound },
+      ],
+    },
+    {
+      title: "4. Quality & Approvals",
+      items: [
+        {
+          id: "approvals",
+          label: "Approval Gate",
+          icon: ShieldCheck,
+          badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : undefined,
+        },
+        { id: "reports", label: "Reports & Metrics", icon: BarChart3 },
+      ],
+    },
+    {
+      title: "5. Intelligence & Memory",
+      items: [
+        { id: "code_intelligence", label: "Code Intelligence", icon: BrainCircuit },
+        { id: "project_knowledge", label: "Project Knowledge", icon: Brain },
+        { id: "website_intelligence", label: "Website Intelligence", icon: Brain },
+        { id: "memory", label: "Memory System", icon: Database },
+        { id: "workflow", label: "Workflows", icon: Workflow },
+      ],
+    },
+    {
+      title: "System Control",
+      items: [
+        { id: "dashboard", label: "System Monitor", icon: LayoutDashboard },
+        { id: "activity", label: "Activity Logs", icon: Activity },
+        { id: "playground", label: "AI Playground", icon: Zap },
+        { id: "ai_engine", label: "AI Engine", icon: Cpu },
+        { id: "settings", label: "Settings", icon: Settings },
+      ],
+    },
   ];
 
   return (
@@ -102,51 +137,63 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {/* Main Scrollable Navigation Menu */}
-      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1 custom-scrollbar min-h-0">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeTab === item.id;
+      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-4 custom-scrollbar min-h-0">
+        {sections.map((section, secIdx) => (
+          <div key={secIdx} className="space-y-1">
+            {!isSidebarCollapsed && (
+              <h2 className="px-3.5 pt-2 pb-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                {section.title}
+              </h2>
+            )}
+            {isSidebarCollapsed && secIdx > 0 && (
+              <div className="mx-3.5 my-2 border-t border-slate-100" />
+            )}
+            {section.items.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
 
-          return (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`
-                w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-semibold text-xs transition-all duration-150 cursor-pointer
-                ${
-                  isActive
-                    ? "bg-[#EEF2FF] text-[#4F46E5] font-extrabold shadow-2xs"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-                }
-              `}
-              title={isSidebarCollapsed ? item.label : undefined}
-            >
-              <Icon
-                className={`w-4 h-4 flex-shrink-0 transition-colors ${
-                  isActive ? "text-[#4F46E5]" : "text-slate-400"
-                }`}
-              />
-              {!isSidebarCollapsed && (
-                <span className="flex-1 text-left truncate">{item.label}</span>
-              )}
-
-              {!isSidebarCollapsed && item.badge !== undefined && (
-                <span
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
                   className={`
-                  px-2 py-0.5 text-[10px] font-extrabold rounded-full
-                  ${
-                    isActive
-                      ? "bg-[#4F46E5] text-white"
-                      : "bg-indigo-100 text-indigo-700"
-                  }
-                `}
+                    w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-semibold text-xs transition-all duration-150 cursor-pointer
+                    ${
+                      isActive
+                        ? "bg-[#EEF2FF] text-[#4F46E5] font-extrabold shadow-2xs"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                    }
+                  `}
+                  title={isSidebarCollapsed ? item.label : undefined}
                 >
-                  {item.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
+                  <Icon
+                    className={`w-4 h-4 flex-shrink-0 transition-colors ${
+                      isActive ? "text-[#4F46E5]" : "text-slate-400"
+                    }`}
+                  />
+                  {!isSidebarCollapsed && (
+                    <span className="flex-1 text-left truncate">{item.label}</span>
+                  )}
+
+                  {!isSidebarCollapsed && item.badge !== undefined && (
+                    <span
+                      className={`
+                      px-2 py-0.5 text-[10px] font-extrabold rounded-full
+                      ${
+                        isActive
+                          ? "bg-[#4F46E5] text-white"
+                          : "bg-indigo-100 text-indigo-700"
+                      }
+                    `}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        ))}
       </div>
 
       {/* Sidebar Footer Cards & User Profile */}

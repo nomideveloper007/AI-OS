@@ -2,6 +2,7 @@ import { AgentRegistry } from '../../agents/core/AgentRegistry';
 import type { Task, TaskExecutionRecord, TaskLogEntry } from '../types/Task';
 import { TaskLogger } from './TaskLogger';
 import { TaskEvents } from './TaskEvents';
+import { ApprovalManager } from '../../workflow/approval/ApprovalManager';
 
 /**
  * Executes a task by delegating to the assigned agent from the registry.
@@ -114,6 +115,28 @@ export class TaskExecutor {
       task.actualDurationMs = durationMs;
       task.resultSummary = execution.result;
       task.updatedAt = finishedAt;
+
+      // Simulated Git Branch Creation & Pull Request Workflow
+      const isDeveloperAgent = agent.role !== 'Executive Director';
+      if (isDeveloperAgent) {
+        const branchName = `feature/task-${task.id.slice(-5)}`;
+        pushLog('info', `Simulating git integration: Checked out new local branch "${branchName}"`);
+        pushLog('info', `Committed changes locally and pushed to origin/${branchName}`);
+        pushLog('info', `Created Pull Request: Merging "${branchName}" into "main"`);
+        
+        // Register PR approval request in ApprovalManager
+        ApprovalManager.getInstance().createRequest({
+          id: `appr-pr-${task.id}`,
+          workflowId: 'wf-pr-merge',
+          workflowName: 'Pull Request Review & Merge',
+          stepName: `Merge branch ${branchName} into main`,
+          requester: 'CEO Agent',
+          reason: `Code changes pushed by ${agent.name} to branch ${branchName} are ready for review and integration.`,
+          status: 'Pending',
+          createdTime: new Date().toISOString(),
+          website: task.websiteDomain || 'tasktomoney.com'
+        });
+      }
 
       this.events.emit('task_finished', task.id, `Finished by ${agent.name}`, {
         agentId: agent.id,

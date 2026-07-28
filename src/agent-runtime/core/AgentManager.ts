@@ -31,36 +31,7 @@ export class AgentManager {
       return;
     }
 
-    const blueprints: CreateRuntimeAgentInput[] = [
-      {
-        name: 'CEO Runtime Worker',
-        role: 'Executive Director',
-        description: 'Runtime shell for executive coordination tasks.',
-        capabilities: ['Analyze Data', 'Read Reports', 'Generate Prompt', 'Call AI Engine', 'Report Progress'],
-        skills: ['orchestration', 'review', 'delegation'],
-      },
-      {
-        name: 'SEO Runtime Worker',
-        role: 'SEO Specialist',
-        description: 'Runtime shell for SEO-assigned work (no SEO logic in runtime).',
-        capabilities: ['Website Scan', 'Read Reports', 'Analyze Data', 'Load Memory', 'Call AI Engine'],
-        skills: ['context-loading', 'reporting'],
-      },
-      {
-        name: 'Website Runtime Worker',
-        role: 'Website Auditor',
-        description: 'Runtime shell for website audit assignments.',
-        capabilities: ['Website Scan', 'Read Database', 'Read Reports', 'Load Memory', 'Call AI Engine'],
-        skills: ['health-check', 'reporting'],
-      },
-      {
-        name: 'Growth Runtime Worker',
-        role: 'Growth Marketing',
-        description: 'Runtime shell for growth-assigned work.',
-        capabilities: ['Analyze Data', 'Write Content', 'Send Email', 'Call AI Engine', 'Report Progress'],
-        skills: ['funnel-analysis', 'reporting'],
-      },
-    ];
+    const blueprints: CreateRuntimeAgentInput[] = [];
 
     for (const bp of blueprints) {
       const agent = AgentFactory.create(bp);

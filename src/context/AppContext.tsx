@@ -22,6 +22,14 @@ import {
 } from '../data/mockData';
 import { initialScans, SCAN_STEPS } from '../data/scannerEngine';
 import { WebsiteScanner } from '../scanner';
+import { AgentManager } from '../agents/core/AgentManager';
+import { AgentEvents } from '../agents/core/AgentEvents';
+import { TaskEngine } from '../task-engine/core/TaskEngine';
+import { TaskEvents } from '../task-engine/core/TaskEvents';
+import { GitHubManager } from '../github/core/GitHubManager';
+import { ApprovalManager } from '../workflow/approval/ApprovalManager';
+import { TaskRepository } from '../task-engine/repositories/TaskRepository';
+
 
 interface AddWebsitePayload {
   name: string;
@@ -55,8 +63,8 @@ interface AppContextType {
   deletingWebsite: WebsiteItem | null;
   setDeletingWebsite: (web: WebsiteItem | null) => void;
   
-  addWebsiteItem: (payload: AddWebsitePayload) => { success: boolean; error?: string };
-  updateWebsiteItem: (id: string, payload: Partial<WebsiteItem>) => { success: boolean; error?: string };
+  addWebsiteItem: (payload: AddWebsitePayload) => Promise<{ success: boolean; error?: string }>;
+  updateWebsiteItem: (id: string, payload: Partial<WebsiteItem>) => Promise<{ success: boolean; error?: string }>;
   deleteWebsiteItem: (id: string) => void;
   duplicateWebsiteItem: (id: string) => void;
   toggleFavoriteWebsite: (id: string) => void;
@@ -128,11 +136,24 @@ export const formatCleanUrl = (rawUrl: string): string => {
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
+  const [activeTab, setActiveTab] = useState<NavTab>('github');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
 
-  const [websites, setWebsites] = useState<WebsiteItem[]>(initialWebsites);
+  const [websites, setWebsites] = useState<WebsiteItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('aios.websites');
+      if (stored) {
+        try {
+          const list = JSON.parse(stored);
+          if (Array.isArray(list)) return list;
+        } catch {
+          // ignore
+        }
+      }
+    }
+    return [];
+  });
   const [selectedWebsiteId, setSelectedWebsiteId] = useState<string | null>(null);
   const [editingWebsite, setEditingWebsite] = useState<WebsiteItem | null>(null);
   const [deletingWebsite, setDeletingWebsite] = useState<WebsiteItem | null>(null);
@@ -140,17 +161,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Scanner Engine States
   const [scans, setScans] = useState<WebsiteScanResult[]>(() => {
     const stored = WebsiteScanner.getInstance().getRepository().listProcessed();
-    return stored.length > 0 ? stored : initialScans;
+    return stored.length > 0 ? stored : [];
   });
   const [activeScanningWebsite, setActiveScanningWebsite] = useState<WebsiteItem | null>(null);
   const [scanningStepIndex, setScanningStepIndex] = useState<number>(0);
   const [activeReportScan, setActiveReportScan] = useState<WebsiteScanResult | null>(null);
 
-  const [agents, setAgents] = useState<Agent[]>(initialAgents);
-  const [tasks, setTasks] = useState<TaskItem[]>(initialTasks);
-  const [approvals, setApprovals] = useState<PendingApproval[]>(initialApprovals);
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(initialActivityLogs);
-  const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [approvals, setApprovals] = useState<PendingApproval[]>([]);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
   const [isAddWebsiteOpen, setIsAddWebsiteOpen] = useState(false);
   const [isAddAgentOpen, setIsAddAgentOpen] = useState(false);
@@ -161,7 +183,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Active website for dashboard views
-  const website = websites[0] || initialWebsites[0];
+  const website = websites[0] || {
+    id: '',
+    name: 'No connected website',
+    url: '',
+    domain: 'Connect a website to begin',
+    framework: 'Unknown',
+    category: 'Other',
+    status: 'Inactive',
+    favorite: false,
+    created_at: '',
+    updated_at: '',
+    healthScore: 0,
+    lastScan: 'Never',
+    metrics: {
+      performance: 0,
+      seo: 0,
+      security: 0,
+      accessibility: 0
+    }
+  };
 
   // Always keep in light/white mode
   useEffect(() => {
@@ -180,6 +221,166 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Save websites list to local storage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('aios.websites', JSON.stringify(websites));
+    }
+  }, [websites]);
+
+  const refreshFromEngines = () => {
+    // 1. Fetch real agents
+    const realAgents = AgentManager.getInstance().listAgents().map((a) => {
+      const statusMap: Record<string, Agent['status']> = {
+        Idle: 'Idle',
+        Running: 'Active',
+        Paused: 'Paused',
+        Stopped: 'Paused',
+      };
+      const avatarColors: Record<string, string> = {
+        'CEO Agent': 'bg-indigo-600',
+        'Project Manager Agent': 'bg-violet-600',
+        'SEO Agent': 'bg-blue-600',
+        'Website Agent': 'bg-emerald-600',
+        'Growth Agent': 'bg-amber-600',
+      };
+      return {
+        id: a.id,
+        name: a.name,
+        type: a.role,
+        status: statusMap[a.status] || 'Idle',
+        lastActivity: a.getLogs()[0]?.timestamp || 'Just now',
+        description: a.description,
+        tasksCompleted: a.getMetrics().successCount,
+        avatarColor: avatarColors[a.name] || 'bg-slate-600',
+        iconName: 'Bot',
+      };
+    });
+    setAgents(realAgents);
+
+    // 2. Fetch real tasks
+    const realTasksList = TaskEngine.getInstance().listTasks();
+    const mappedTasks = realTasksList.map((t) => {
+      const statusMap: Record<string, TaskItem['status']> = {
+        running: 'Running',
+        assigned: 'Running',
+        waiting_assignment: 'Pending',
+        waiting_approval: 'Pending',
+        paused: 'Pending',
+        idle: 'Pending',
+        completed: 'Completed',
+        failed: 'Failed',
+        cancelled: 'Failed',
+      };
+      const timeElapsed = Date.now() - new Date(t.updatedAt).getTime();
+      const minutes = Math.floor(timeElapsed / 60000);
+      let timeAgo = 'Just now';
+      if (minutes >= 1 && minutes < 60) timeAgo = `${minutes} min ago`;
+      else if (minutes >= 60) {
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) timeAgo = `${hours} hrs ago`;
+        else timeAgo = new Date(t.updatedAt).toLocaleDateString();
+      }
+      return {
+        id: t.id,
+        title: t.title,
+        agentName: t.assignedAgentName || 'Unassigned',
+        status: statusMap[t.status] || 'Pending',
+        timeAgo,
+        website: t.websiteDomain || '',
+        progress: t.status === 'completed' ? 100 : (t.status === 'running' ? 45 : 10),
+        category: (t.category || 'SEO') as TaskItem['category'],
+      };
+    });
+    setTasks(mappedTasks);
+
+    // 3. Fetch real approvals from both TaskEngine AND ApprovalManager
+    const taskApprovals = realTasksList
+      .filter((t) => t.status === 'waiting_approval')
+      .map((t) => {
+        return {
+          id: t.id,
+          title: t.title,
+          agentName: t.assignedAgentName || 'Unassigned',
+          website: t.websiteDomain || '',
+          timeAgo: 'Just now',
+          details: t.description || 'Action requires administrator approval.',
+          impact: (t.priority === 'critical' || t.priority === 'high' ? 'High' : 'Medium') as 'High' | 'Medium' | 'Low',
+        };
+      });
+
+    const workflowApprovals = ApprovalManager.getInstance()
+       .getPendingRequests()
+       .map((r) => {
+         return {
+           id: r.id,
+           title: r.stepName,
+           agentName: r.requester,
+           website: r.website || 'tasktomoney.com',
+           timeAgo: 'Just now',
+           details: r.reason,
+           impact: 'High' as const,
+         };
+       });
+
+    setApprovals([...taskApprovals, ...workflowApprovals]);
+
+    // 4. Fetch real activity logs from all agent logs + task logs
+    const realLogs: ActivityLog[] = [];
+    AgentManager.getInstance().listAgents().forEach((agent) => {
+      agent.getLogs().forEach((log) => {
+        const statusMap: Record<string, ActivityLog['status']> = {
+          info: 'info',
+          warn: 'warning',
+          error: 'warning',
+          debug: 'info',
+        };
+        realLogs.push({
+          id: log.id,
+          agentName: agent.name,
+          action: log.message,
+          timeAgo: log.timestamp,
+          status: statusMap[log.level] || 'info',
+          category: 'Agent Activity',
+        });
+      });
+    });
+    realTasksList.forEach((task) => {
+      task.logs.forEach((log) => {
+        realLogs.push({
+          id: log.id,
+          agentName: log.agentName || task.assignedAgentName || 'Task Engine',
+          action: log.message,
+          timeAgo: new Date(log.timestamp).toLocaleTimeString(),
+          status: log.level === 'error' ? 'warning' : 'info',
+          category: 'Task Activity',
+        });
+      });
+    });
+
+    realLogs.sort((a, b) => b.id.localeCompare(a.id));
+    setActivityLogs(realLogs.slice(0, 100));
+  };
+
+  // Synchronize state with background engines
+  useEffect(() => {
+    refreshFromEngines();
+
+    const unsubAgents = AgentEvents.subscribe(() => {
+      refreshFromEngines();
+    });
+    
+    const unsubTasks = TaskEvents.getInstance().subscribe(() => {
+      refreshFromEngines();
+    });
+
+    return () => {
+      unsubAgents();
+      unsubTasks();
+    };
+  }, []);
+
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => {
@@ -197,8 +398,58 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSelectedWebsiteId(id);
   };
 
-  // Add website action with duplicate domain validation
-  const addWebsiteItem = (payload: AddWebsitePayload): { success: boolean; error?: string } => {
+  // Helper to normalize and check if website name/domain is present in connected GitHub repository names
+  const checkIfSourceCodeExists = (websiteName: string, websiteUrl: string, repos: any[]): boolean => {
+    const normalize = (str: string) => {
+      return str
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+    };
+
+    const getLevenshteinDistance = (a: string, b: string): number => {
+      const matrix = [];
+      for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+      for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+      for (let i = 1; i <= b.length; i++) {
+        for (let j = 1; j <= a.length; j++) {
+          if (b.charAt(i - 1) === a.charAt(j - 1)) {
+            matrix[i][j] = matrix[i - 1][j - 1];
+          } else {
+            matrix[i][j] = Math.min(
+              matrix[i - 1][j - 1] + 1,
+              Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1)
+            );
+          }
+        }
+      }
+      return matrix[b.length][a.length];
+    };
+
+    const normalizedWebName = normalize(websiteName);
+    const domain = extractDomain(websiteUrl);
+    const normalizedDomain = normalize(domain.split('.')[0] || domain);
+
+    return repos.some((repo) => {
+      const normalizedRepoName = normalize(repo.name);
+
+      // Match conditions:
+      // 1. Repo name matches website name or domain (exact or substring)
+      // 2. Fuzzy match (edit distance <= 2) to handle slight spelling/naming discrepancies (e.g. PromptVault vs promptsvault)
+      return (
+        normalizedRepoName === normalizedWebName ||
+        normalizedRepoName.includes(normalizedWebName) ||
+        normalizedWebName.includes(normalizedRepoName) ||
+        normalizedRepoName === normalizedDomain ||
+        normalizedRepoName.includes(normalizedDomain) ||
+        normalizedDomain.includes(normalizedRepoName) ||
+        getLevenshteinDistance(normalizedRepoName, normalizedWebName) <= 2 ||
+        getLevenshteinDistance(normalizedRepoName, normalizedDomain) <= 2
+      );
+    });
+  };
+
+  // Add website action with duplicate domain validation and GitHub source code verification
+  const addWebsiteItem = async (payload: AddWebsitePayload): Promise<{ success: boolean; error?: string }> => {
     const name = payload.name.trim();
     const formattedUrl = formatCleanUrl(payload.url);
     const domain = extractDomain(payload.url);
@@ -211,6 +462,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     if (!domain || domain.length < 3 || !domain.includes('.')) {
       return { success: false, error: 'Please enter a valid website URL or domain (e.g. example.com).' };
+    }
+
+    // 1. Check if a GitHub account is connected first
+    const gitUsername = localStorage.getItem('ai_os_github_username');
+    if (!gitUsername) {
+      return { 
+        success: false, 
+        error: 'Please connect your GitHub account first in the "Git Repositories" tab.' 
+      };
+    }
+
+    // 2. Fetch repos to verify source code
+    let repos: any[] = [];
+    try {
+      repos = await GitHubManager.getInstance().getRepositories();
+    } catch (err) {
+      return { 
+        success: false, 
+        error: 'Failed to fetch repositories. Please make sure your GitHub token is valid.' 
+      };
+    }
+
+    if (!repos || repos.length === 0) {
+      return { 
+        success: false, 
+        error: 'No repositories found in your GitHub account. Connect or create a repo first.' 
+      };
+    }
+
+    // 3. Verify if website's source code exists in connected repos
+    const hasSourceCode = checkIfSourceCodeExists(name, formattedUrl, repos);
+    if (!hasSourceCode) {
+      return { 
+        success: false, 
+        error: `Could not verify source code. No connected repository name matches website name "${name}" or domain "${domain}".` 
+      };
     }
 
     // Check for duplicate URL / domain
@@ -253,8 +540,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return { success: true };
   };
 
-  // Update website action with duplicate check
-  const updateWebsiteItem = (id: string, payload: Partial<WebsiteItem>): { success: boolean; error?: string } => {
+  // Update website action with duplicate check and GitHub source code verification
+  const updateWebsiteItem = async (id: string, payload: Partial<WebsiteItem>): Promise<{ success: boolean; error?: string }> => {
     const existing = websites.find((w) => w.id === id);
     if (!existing) {
       return { success: false, error: 'Website not found.' };
@@ -266,6 +553,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     let formattedUrl = existing.url;
     let domain = existing.domain;
+    let hasNameOrUrlChanged = false;
 
     if (payload.url !== undefined) {
       if (!payload.url.trim()) {
@@ -278,12 +566,50 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return { success: false, error: 'Please enter a valid website URL or domain.' };
       }
 
+      if (formattedUrl !== existing.url || domain !== existing.domain) {
+        hasNameOrUrlChanged = true;
+      }
+
       // Check duplicate excluding self
       const isDuplicate = websites.some(
         (w) => w.id !== id && (w.domain.toLowerCase() === domain.toLowerCase() || w.url.toLowerCase() === formattedUrl.toLowerCase())
       );
       if (isDuplicate) {
         return { success: false, error: `Another website with domain "${domain}" already exists.` };
+      }
+    }
+
+    if (payload.name !== undefined && payload.name.trim() !== existing.name) {
+      hasNameOrUrlChanged = true;
+    }
+
+    // Run verification if name or URL changed
+    if (hasNameOrUrlChanged) {
+      const gitUsername = localStorage.getItem('ai_os_github_username');
+      if (!gitUsername) {
+        return { 
+          success: false, 
+          error: 'Please connect your GitHub account first in the "Git Repositories" tab.' 
+        };
+      }
+
+      let repos: any[] = [];
+      try {
+        repos = await GitHubManager.getInstance().getRepositories();
+      } catch (err) {
+        return { 
+          success: false, 
+          error: 'Failed to fetch repositories. Please make sure your GitHub token is valid.' 
+        };
+      }
+
+      const checkName = payload.name !== undefined ? payload.name.trim() : existing.name;
+      const hasSourceCode = checkIfSourceCodeExists(checkName, formattedUrl, repos);
+      if (!hasSourceCode) {
+        return { 
+          success: false, 
+          error: `Could not verify source code. No connected repository name matches website name "${checkName}" or domain "${domain}".` 
+        };
       }
     }
 
@@ -474,72 +800,83 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const approveItem = (id: string) => {
-    const item = approvals.find((a) => a.id === id);
-    if (!item) return;
+    try {
+      if (id.startsWith('appr-')) {
+        ApprovalManager.getInstance().approve(id, 'Administrator', 'Approved from Approvals Queue.');
+        showToast(`Approved request successfully`);
 
-    setApprovals((prev) => prev.filter((a) => a.id !== id));
-
-    const newLog: ActivityLog = {
-      id: `act-${Date.now()}`,
-      agentName: item.agentName,
-      action: `Approved: ${item.title}`,
-      timeAgo: 'Just now',
-      status: 'success',
-      category: 'Approvals',
-      details: item.details
-    };
-    setActivityLogs((prev) => [newLog, ...prev]);
-    showToast(`Approved "${item.title}" successfully`);
+        // If this is a Pull Request merge approval, log the merge to TaskEngine
+        if (id.startsWith('appr-pr-')) {
+          const taskId = id.replace('appr-pr-', '');
+          const task = TaskRepository.getInstance().get(taskId);
+          if (task) {
+            task.logs.unshift({
+              id: `tl-merge-${Date.now()}`,
+              level: 'info',
+              message: `PR Approved by Administrator. Merged branch feature/task-${taskId.slice(-5)} into main. Live changes deployed to production.`,
+              timestamp: new Date().toISOString(),
+              agentId: 'agent-pm-orchestrator',
+              agentName: 'Project Manager Agent',
+            });
+            TaskRepository.getInstance().save(task);
+          }
+        }
+      } else {
+        TaskEngine.getInstance().approve(id);
+        showToast(`Approved task successfully`);
+      }
+      refreshFromEngines();
+    } catch (err) {
+      showToast(`Failed to approve: ${err instanceof Error ? err.message : String(err)}`);
+    }
   };
 
   const rejectItem = (id: string) => {
-    const item = approvals.find((a) => a.id === id);
-    if (!item) return;
-
-    setApprovals((prev) => prev.filter((a) => a.id !== id));
-
-    const newLog: ActivityLog = {
-      id: `act-${Date.now()}`,
-      agentName: item.agentName,
-      action: `Rejected: ${item.title}`,
-      timeAgo: 'Just now',
-      status: 'warning',
-      category: 'Approvals',
-      details: item.details
-    };
-    setActivityLogs((prev) => [newLog, ...prev]);
-    showToast(`Rejected "${item.title}"`);
+    try {
+      if (id.startsWith('appr-')) {
+        ApprovalManager.getInstance().reject(id, 'Administrator', 'Rejected from Approvals Queue.');
+        showToast(`Rejected request`);
+      } else {
+        TaskEngine.getInstance().cancel(id);
+        showToast(`Rejected task`);
+      }
+      refreshFromEngines();
+    } catch (err) {
+      showToast(`Failed to reject: ${err instanceof Error ? err.message : String(err)}`);
+    }
   };
 
   const addAgent = (newAgentData: Partial<Agent>) => {
-    const newAgent: Agent = {
-      id: `agent-${Date.now()}`,
-      name: newAgentData.name || 'Custom Agent',
-      type: newAgentData.type || 'Automated Assistant',
-      status: 'Active',
-      lastActivity: 'Just now',
-      description: newAgentData.description || 'Custom configured agent.',
-      tasksCompleted: 0,
-      avatarColor: newAgentData.avatarColor || 'bg-blue-600',
-      iconName: 'Bot'
-    };
-    setAgents((prev) => [...prev, newAgent]);
-    showToast(`Agent "${newAgent.name}" created successfully`);
+    try {
+      AgentManager.getInstance().createAgent({
+        name: newAgentData.name || 'Custom Agent',
+        description: newAgentData.description || 'Custom configured agent.',
+        role: (newAgentData.type || 'Custom Workforce') as any,
+        priority: 'Medium',
+        capabilities: ['Analyze Data', 'Read Reports'],
+      });
+      showToast(`Agent "${newAgentData.name}" created successfully`);
+      refreshFromEngines();
+    } catch (err) {
+      showToast(`Failed to create agent: ${err instanceof Error ? err.message : String(err)}`);
+    }
   };
 
   const addTask = (taskData: Partial<TaskItem>) => {
-    const newTask: TaskItem = {
-      id: `task-${Date.now()}`,
-      title: taskData.title || 'New Task',
-      agentName: taskData.agentName || 'SEO Agent',
-      status: 'Running',
-      timeAgo: 'Just now',
-      website: website.domain,
-      progress: 10,
-      category: taskData.category || 'SEO'
-    };
-    setTasks((prev) => [newTask, ...prev]);
-    showToast(`Task "${newTask.title}" queued and running`);
+    try {
+      TaskEngine.getInstance().createTask({
+        title: taskData.title || 'New Task',
+        category: (taskData.category || 'SEO') as any,
+        websiteDomain: website.domain,
+        websiteId: website.id,
+        requestedBy: 'CEO Agent',
+        approvalRequired: false,
+      });
+      showToast(`Task "${taskData.title}" queued successfully`);
+      refreshFromEngines();
+    } catch (err) {
+      showToast(`Failed to create task: ${err instanceof Error ? err.message : String(err)}`);
+    }
   };
 
   const markNotificationRead = (id: string) => {

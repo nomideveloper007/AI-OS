@@ -183,7 +183,7 @@ export class TaskPlanner {
       websiteDomain: input.domain,
       websiteId: input.websiteId,
       requestedBy: 'CEO Executive Agent',
-      approvalRequired: true,
+      approvalRequired: false,
       estimatedDurationMs: task.horizon === 'daily' ? 30 * 60 * 1000 : 2 * 60 * 60 * 1000,
       payload: {
         source: 'ceo_strategic_planner',

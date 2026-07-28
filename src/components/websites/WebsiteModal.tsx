@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { WebsiteItem, WebsiteCategory, WebsiteFramework, WebsiteStatus } from '../../types';
 import { useApp } from '../../context/AppContext';
-import { X, Globe, AlertCircle, Check } from 'lucide-react';
+import { X, Globe, AlertCircle, Check, RefreshCw } from 'lucide-react';
 
 interface WebsiteModalProps {
   isOpen: boolean;
@@ -50,6 +50,7 @@ export const WebsiteModal: React.FC<WebsiteModalProps> = ({
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [touched, setTouched] = useState({ name: false, url: false });
+  const [isVerifying, setIsVerifying] = useState(false);
 
   useEffect(() => {
     if (editingWebsite) {
@@ -77,7 +78,7 @@ export const WebsiteModal: React.FC<WebsiteModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setTouched({ name: true, url: true });
     setErrorMsg(null);
@@ -91,39 +92,47 @@ export const WebsiteModal: React.FC<WebsiteModalProps> = ({
       return;
     }
 
-    if (editingWebsite) {
-      const res = updateWebsiteItem(editingWebsite.id, {
-        name,
-        url,
-        category,
-        framework,
-        status,
-        favorite,
-        description,
-        notes
-      });
-      if (!res.success) {
-        setErrorMsg(res.error || 'Failed to update website.');
-        return;
+    setIsVerifying(true);
+    try {
+      if (editingWebsite) {
+        const res = await updateWebsiteItem(editingWebsite.id, {
+          name,
+          url,
+          category,
+          framework,
+          status,
+          favorite,
+          description,
+          notes
+        });
+        if (!res.success) {
+          setErrorMsg(res.error || 'Failed to update website.');
+          setIsVerifying(false);
+          return;
+        }
+      } else {
+        const res = await addWebsiteItem({
+          name,
+          url,
+          category,
+          framework,
+          status,
+          favorite,
+          description,
+          notes
+        });
+        if (!res.success) {
+          setErrorMsg(res.error || 'Failed to add website.');
+          setIsVerifying(false);
+          return;
+        }
       }
-    } else {
-      const res = addWebsiteItem({
-        name,
-        url,
-        category,
-        framework,
-        status,
-        favorite,
-        description,
-        notes
-      });
-      if (!res.success) {
-        setErrorMsg(res.error || 'Failed to add website.');
-        return;
-      }
+      onClose();
+    } catch (err) {
+      setErrorMsg('An unexpected error occurred during repository verification.');
+    } finally {
+      setIsVerifying(false);
     }
-
-    onClose();
   };
 
   return (
@@ -316,16 +325,29 @@ export const WebsiteModal: React.FC<WebsiteModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-100 transition-colors cursor-pointer"
+              disabled={isVerifying}
+              className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-100 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold text-xs transition-all shadow-sm cursor-pointer flex items-center gap-1.5"
+              disabled={isVerifying}
+              className={`px-5 py-2 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold text-xs transition-all shadow-sm flex items-center gap-1.5 ${
+                isVerifying ? 'opacity-75 cursor-wait' : 'cursor-pointer'
+              }`}
             >
-              <Check className="w-4 h-4 stroke-[2.5]" />
-              {editingWebsite ? 'Save Changes' : 'Connect Website'}
+              {isVerifying ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Verifying Repository...</span>
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4 stroke-[2.5]" />
+                  <span>{editingWebsite ? 'Save Changes' : 'Connect Website'}</span>
+                </>
+              )}
             </button>
           </div>
         </form>

@@ -11,21 +11,102 @@ import {
 } from 'lucide-react';
 
 export const ReportsView: React.FC = () => {
-  const { website, showToast } = useApp();
+  const { website, websites, scans, selectedWebsiteId, selectWebsiteForDetails, setActiveTab, showToast } = useApp();
 
   const handleExport = () => {
     showToast('Exported AI OS Executive Audit PDF Report!');
   };
 
+  const hasScan = React.useMemo(() => {
+    if (websites.length === 0 || !website?.id) return false;
+    return scans.some((s) => s.domain === website.domain);
+  }, [websites, website, scans]);
+
+  // Compute dynamic stats based on website domain hash
+  const stats = React.useMemo(() => {
+    if (!hasScan || !website?.domain) {
+      return {
+        totalVisitors: 0,
+        trendStr: 'No traffic data',
+        seoPages: 0,
+        lcpSpeed: '0.0',
+        ttfbScore: 0,
+      };
+    }
+
+    let hash = 0;
+    const str = website.domain;
+    for (let i = 0; i < str.length; i++) {
+      hash = (hash << 5) - hash + str.charCodeAt(i);
+      hash |= 0;
+    }
+    const absHash = Math.abs(hash);
+
+    const baseVisitors = 150 + (absHash % 850);
+    const totalVisitors = Array.from({ length: 7 }, (_, i) => {
+      const dayVariation = Math.sin(absHash + i) * 0.3 + 0.05;
+      return Math.round(baseVisitors * (1 + dayVariation));
+    }).reduce((sum, v) => sum + v, 0);
+
+    const trendVal = ((absHash % 250) / 10) + 1.5;
+    const trendStr = `↑ +${trendVal.toFixed(1)}% growth rate`;
+
+    const seoPages = 5 + (absHash % 45);
+
+    const lcpSpeed = (2.2 - (website.metrics.performance * 0.015)).toFixed(1);
+    const ttfbScore = Math.min(Math.round(website.metrics.performance * 0.95 + 5), 100);
+
+    return {
+      totalVisitors,
+      trendStr,
+      seoPages,
+      lcpSpeed,
+      ttfbScore,
+    };
+  }, [hasScan, website]);
+
+  if (websites.length === 0) {
+    return (
+      <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-4 max-w-lg mx-auto mt-12 text-xs">
+        <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center text-[#4F46E5] mx-auto shadow-2xs">
+          <Layers className="w-8 h-8" />
+        </div>
+        <h2 className="text-sm font-extrabold text-slate-900">No Connected Websites</h2>
+        <p className="text-xs text-slate-500 font-medium leading-relaxed">
+          Analytics & Executive Reports require an active connected website to calculate audit summaries, health trends, and performance breakdowns.
+        </p>
+        <button
+          onClick={() => setActiveTab('websites')}
+          className="px-5 py-2.5 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white font-extrabold text-xs transition-all shadow-sm cursor-pointer"
+        >
+          Go to Websites & Connect One
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fade-in text-xs">
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
-        <div>
+        <div className="space-y-1">
           <h2 className="text-xl font-extrabold text-slate-900">Analytics & Executive Reports</h2>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Detailed performance, SEO, traffic trends, and audit scores for {website.domain}.
-          </p>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-slate-500 font-medium">
+              Detailed performance, SEO, traffic trends, and audit scores for:
+            </span>
+            <select
+              value={selectedWebsiteId || websites[0]?.id || ''}
+              onChange={(e) => selectWebsiteForDetails(e.target.value || null)}
+              className="px-3 py-1 rounded-lg bg-slate-50 border border-slate-200 font-bold text-slate-800 text-[11px] focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer shadow-2xs"
+            >
+              {websites.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name} ({w.domain})
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <button
@@ -45,8 +126,12 @@ export const ReportsView: React.FC = () => {
             <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Website Health</span>
             <ShieldCheck className="w-5 h-5 text-emerald-500" />
           </div>
-          <p className="text-3xl font-extrabold text-slate-900">{website.healthScore}/100</p>
-          <p className="text-xs text-emerald-600 font-bold">↑ +4 points from last week</p>
+          <p className="text-3xl font-extrabold text-slate-900">
+            {hasScan ? `${website.healthScore}/100` : '0/100'}
+          </p>
+          <p className={`text-xs font-bold ${hasScan ? 'text-emerald-600' : 'text-slate-400'}`}>
+            {hasScan ? '↑ +4 points from last week' : 'No scans run yet'}
+          </p>
         </div>
 
         {/* Traffic */}
@@ -55,8 +140,12 @@ export const ReportsView: React.FC = () => {
             <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Traffic</span>
             <TrendingUp className="w-5 h-5 text-blue-500" />
           </div>
-          <p className="text-3xl font-extrabold text-slate-900">2,485</p>
-          <p className="text-xs text-emerald-600 font-bold">↑ +18.6% growth rate</p>
+          <p className="text-3xl font-extrabold text-slate-900">
+            {hasScan ? stats.totalVisitors.toLocaleString() : '0'}
+          </p>
+          <p className={`text-xs font-bold ${hasScan ? 'text-emerald-600' : 'text-slate-400'}`}>
+            {hasScan ? stats.trendStr : 'No data collected'}
+          </p>
         </div>
 
         {/* SEO Score */}
@@ -65,8 +154,12 @@ export const ReportsView: React.FC = () => {
             <span className="text-xs font-bold uppercase tracking-wider text-slate-400">SEO Score</span>
             <Search className="w-5 h-5 text-blue-500" />
           </div>
-          <p className="text-3xl font-extrabold text-slate-900">{website.metrics.seo}/100</p>
-          <p className="text-xs text-blue-600 font-bold">42 indexed pages optimized</p>
+          <p className="text-3xl font-extrabold text-slate-900">
+            {hasScan ? `${website.metrics.seo}/100` : '0/100'}
+          </p>
+          <p className={`text-xs font-bold ${hasScan ? 'text-blue-600' : 'text-slate-400'}`}>
+            {hasScan ? `${stats.seoPages} indexed pages optimized` : 'SEO checks pending'}
+          </p>
         </div>
 
         {/* Performance */}
@@ -75,8 +168,12 @@ export const ReportsView: React.FC = () => {
             <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Performance</span>
             <Gauge className="w-5 h-5 text-purple-500" />
           </div>
-          <p className="text-3xl font-extrabold text-slate-900">{website.metrics.performance}/100</p>
-          <p className="text-xs text-purple-600 font-bold">0.8s LCP • 98% TTFB score</p>
+          <p className="text-3xl font-extrabold text-slate-900">
+            {hasScan ? `${website.metrics.performance}/100` : '0/100'}
+          </p>
+          <p className={`text-xs font-bold ${hasScan ? 'text-purple-600' : 'text-slate-400'}`}>
+            {hasScan ? `${stats.lcpSpeed}s LCP • ${stats.ttfbScore}% TTFB score` : 'Performance checks pending'}
+          </p>
         </div>
       </div>
 

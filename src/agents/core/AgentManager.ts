@@ -30,6 +30,13 @@ export class AgentManager {
         capabilities: ['Analyze Data', 'Read Reports', 'Generate Prompt', 'Write Content']
       },
       {
+        name: 'Project Manager Agent',
+        description: 'Breaks high-level CEO goals into actionable tasks, manages backlog priorities, and monitors agent dependencies.',
+        role: 'Project Manager',
+        priority: 'High',
+        capabilities: ['Analyze Data', 'Read Reports', 'Generate Prompt']
+      },
+      {
         name: 'SEO Agent',
         description: 'Monitors meta tag coverage, heading structures, canonical URLs, and keyword optimization targets.',
         role: 'SEO Specialist',

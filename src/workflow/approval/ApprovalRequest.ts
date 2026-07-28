@@ -13,4 +13,5 @@ export interface WorkflowApprovalRequest {
   approvedTime?: string;
   rejectedTime?: string;
   comments?: string;
+  website?: string;
 }

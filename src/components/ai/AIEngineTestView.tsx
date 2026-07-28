@@ -26,7 +26,7 @@ export const AIEngineTestView: React.FC = () => {
   const { messages, tokenCount, sendMessage, clearMessages } = useConversation();
 
   const [testPrompt, setTestPrompt] = useState('Analyze website architecture and summarize technical readiness for AI workforce integration.');
-  const [selectedModelId, setSelectedModelId] = useState('mock-gpt-4o');
+  const [selectedModelId, setSelectedModelId] = useState('auto/best-chat');
   const [lastResponseText, setLastResponseText] = useState<string | null>(null);
 
   const providers = manager.providers.getAllProviders();
@@ -149,10 +149,18 @@ export const AIEngineTestView: React.FC = () => {
             <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-extrabold text-slate-900">AI Engine Test Playground</h3>
-                <p className="text-xs text-slate-400 font-medium">Test prompt compilation, model routing, and mock execution pipeline</p>
+                <p className="text-xs text-slate-400 font-medium">
+                  {activeModel?.provider === 'omniroute'
+                    ? 'Test prompt compilation, model routing, and production gateway execution pipeline'
+                    : 'Test prompt compilation, model routing, and mock execution pipeline'}
+                </p>
               </div>
-              <span className="px-2.5 py-0.5 bg-slate-100 font-mono text-[11px] font-bold text-slate-700 rounded-full">
-                Mock Engine Mode
+              <span className={`px-2.5 py-0.5 font-mono text-[11px] font-bold rounded-full ${
+                activeModel?.provider === 'omniroute'
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs'
+                  : 'bg-slate-100 text-slate-700'
+              }`}>
+                {activeModel?.provider === 'omniroute' ? 'OmniRoute Gateway' : 'Mock Engine Mode'}
               </span>
             </div>
 

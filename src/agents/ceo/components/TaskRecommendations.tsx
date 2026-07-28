@@ -49,7 +49,10 @@ export const TaskRecommendations: React.FC<TaskRecommendationsProps> = ({ tasks:
 
       <div className="space-y-3">
         {tasks.map((task) => {
-          const isApproved = task.status === 'Approved';
+          const matchingReq = approvalManager.getAllRequests().find(
+            (r) => r.id.includes(task.id) || r.stepName === task.title
+          );
+          const isApproved = task.status === 'Approved' || (matchingReq && matchingReq.status === 'Approved');
           return (
             <div key={task.id} className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-3">
               <div className="flex items-center justify-between flex-wrap gap-2">

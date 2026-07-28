@@ -17,20 +17,26 @@ export const OpportunityPanel: React.FC<OpportunityPanelProps> = ({ opportunitie
         <span className="text-xs font-bold text-slate-400">{opportunities.length} Opportunities</span>
       </div>
 
-      <div className="space-y-3">
-        {opportunities.map((opp) => (
-          <div key={opp.id} className="p-4 rounded-xl bg-emerald-50/50 border border-emerald-100 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="font-extrabold text-emerald-950 text-sm">{opp.title}</span>
-              <span className="px-2 py-0.5 rounded font-extrabold text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-200">
-                {opp.potentialGrowth}
-              </span>
+      {opportunities.length === 0 ? (
+        <div className="p-8 text-center text-slate-400 font-bold bg-slate-50/50 rounded-xl border border-slate-100">
+          No growth opportunities identified yet. Run planning analysis to search!
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {opportunities.map((opp) => (
+            <div key={opp.id} className="p-4 rounded-xl bg-emerald-50/50 border border-emerald-100 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="font-extrabold text-emerald-950 text-sm">{opp.title}</span>
+                <span className="px-2 py-0.5 rounded font-extrabold text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  {opp.potentialGrowth}
+                </span>
+              </div>
+              <p className="text-emerald-900 font-medium">{opp.description}</p>
+              <p className="text-[11px] font-bold text-emerald-700">Action Plan: {opp.actionPlan}</p>
             </div>
-            <p className="text-emerald-900 font-medium">{opp.description}</p>
-            <p className="text-[11px] font-bold text-emerald-700">Action Plan: {opp.actionPlan}</p>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

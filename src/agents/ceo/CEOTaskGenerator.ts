@@ -16,8 +16,8 @@ export class CEOTaskGenerator {
         estimatedDifficulty: 'Moderate',
         suggestedAgent: 'Website Auditor Agent',
         reason: `Automated risk mitigation: ${risk.mitigationStrategy}`,
-        status: 'Pending Approval',
-        approvalRequired: true
+        status: 'Approved',
+        approvalRequired: false
       });
     });
 
@@ -33,8 +33,8 @@ export class CEOTaskGenerator {
         estimatedDifficulty: 'Hard',
         suggestedAgent: 'Growth Marketing Agent',
         reason: `Targeted growth strategy: ${opp.potentialGrowth}`,
-        status: 'Pending Approval',
-        approvalRequired: true
+        status: 'Approved',
+        approvalRequired: false
       });
     });
 
@@ -51,8 +51,8 @@ export class CEOTaskGenerator {
           estimatedDifficulty: 'Moderate',
           suggestedAgent: 'SEO Specialist Agent',
           reason: 'Homepage meta title is missing targeted search keywords.',
-          status: 'Pending Approval',
-          approvalRequired: true
+          status: 'Approved',
+          approvalRequired: false
         },
         {
           id: `ceotask-seo-2`,
@@ -64,8 +64,8 @@ export class CEOTaskGenerator {
           estimatedDifficulty: 'Moderate',
           suggestedAgent: 'SEO Specialist Agent',
           reason: 'Multiple images lack ALT text attributes.',
-          status: 'Pending Approval',
-          approvalRequired: true
+          status: 'Approved',
+          approvalRequired: false
         },
         {
           id: `ceotask-content-1`,
@@ -77,8 +77,8 @@ export class CEOTaskGenerator {
           estimatedDifficulty: 'Hard',
           suggestedAgent: 'Growth Marketing Agent',
           reason: 'Captures high-intent organic search volume.',
-          status: 'Pending Approval',
-          approvalRequired: true
+          status: 'Approved',
+          approvalRequired: false
         },
         {
           id: `ceotask-seo-3`,
@@ -90,8 +90,8 @@ export class CEOTaskGenerator {
           estimatedDifficulty: 'Hard',
           suggestedAgent: 'SEO Specialist Agent',
           reason: 'Crawl budget optimization for search indexing.',
-          status: 'Pending Approval',
-          approvalRequired: true
+          status: 'Approved',
+          approvalRequired: false
         },
         {
           id: `ceotask-content-2`,
@@ -103,8 +103,8 @@ export class CEOTaskGenerator {
           estimatedDifficulty: 'Hard',
           suggestedAgent: 'Growth Marketing Agent',
           reason: 'Expands site keyword footprint and topical authority.',
-          status: 'Pending Approval',
-          approvalRequired: true
+          status: 'Approved',
+          approvalRequired: false
         },
         {
           id: `ceotask-perf-1`,
@@ -116,8 +116,8 @@ export class CEOTaskGenerator {
           estimatedDifficulty: 'Moderate',
           suggestedAgent: 'Website Auditor Agent',
           reason: 'Core Web Vitals impact Google search ranking signals.',
-          status: 'Pending Approval',
-          approvalRequired: true
+          status: 'Approved',
+          approvalRequired: false
         }
       );
     }

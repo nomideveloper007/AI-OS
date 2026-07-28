@@ -3,6 +3,7 @@ import { AppProvider, useApp } from './context/AppContext';
 import { Sidebar } from './components/layout/Sidebar';
 import { TopNav } from './components/layout/TopNav';
 import { Footer } from './components/layout/Footer';
+import { VoiceCallOverlay } from './components/voice/VoiceCallOverlay';
 
 import { DashboardView } from './components/dashboard/DashboardView';
 import { WebsitesView } from './components/websites/WebsitesView';
@@ -118,6 +119,7 @@ const MainContent: React.FC = () => {
       <SearchModal />
       <NotificationPopover />
       <Toast />
+      <VoiceCallOverlay />
     </div>
   );
 };

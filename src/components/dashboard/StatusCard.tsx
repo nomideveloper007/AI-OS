@@ -3,7 +3,11 @@ import { useApp } from "../../context/AppContext";
 import { Monitor, Globe, ClipboardList, Hourglass } from "lucide-react";
 
 export const StatusCardRow: React.FC = () => {
-  const { website, setActiveTab } = useApp();
+  const { website, websites, tasks, approvals, setActiveTab } = useApp();
+
+  const runningCount = tasks.filter((t) => t.status === 'Running').length;
+  const pendingCount = tasks.filter((t) => t.status === 'Pending').length;
+  const totalTasks = runningCount + pendingCount;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -24,7 +28,7 @@ export const StatusCardRow: React.FC = () => {
             <span className="w-2 h-2 rounded-full bg-[#10B981] inline-block animate-pulse"></span>
           </div>
           <p className="text-[11px] text-slate-400 pt-0.5">
-            Last checked 2 min ago
+            Last checked Just now
           </p>
         </div>
       </div>
@@ -41,12 +45,14 @@ export const StatusCardRow: React.FC = () => {
           <p className="text-xs font-medium text-slate-500">
             Connected Website
           </p>
-          <h3 className="text-base font-bold text-slate-900">1 Website</h3>
+          <h3 className="text-base font-bold text-slate-900">
+            {websites.length} {websites.length === 1 ? 'Website' : 'Websites'}
+          </h3>
           <p className="text-xs font-semibold text-[#2563EB] truncate hover:underline">
-            {website.domain}
+            {website?.domain || 'None connected'}
           </p>
           <p className="text-[11px] text-slate-400 pt-0.5">
-            Last scan {website.lastScan}
+            Last scan {website?.lastScan || 'N/A'}
           </p>
         </div>
       </div>
@@ -62,12 +68,12 @@ export const StatusCardRow: React.FC = () => {
         <div className="flex-1 min-w-0 space-y-0.5">
           <p className="text-xs font-medium text-slate-500">Running Tasks</p>
           <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-            12
+            {totalTasks}
           </h3>
           <div className="flex items-center gap-2 text-xs">
-            <span className="font-semibold text-[#059669]">5 Running</span>
+            <span className="font-semibold text-[#059669]">{runningCount} Running</span>
             <span className="text-slate-300">•</span>
-            <span className="font-semibold text-[#D97706]">7 Pending</span>
+            <span className="font-semibold text-[#D97706]">{pendingCount} Pending</span>
           </div>
         </div>
       </div>
@@ -85,10 +91,10 @@ export const StatusCardRow: React.FC = () => {
             Pending Approvals
           </p>
           <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-            8
+            {approvals.length}
           </h3>
           <p className="text-xs font-semibold text-[#EA580C]">
-            Needs your review
+            {approvals.length > 0 ? 'Needs your review' : 'All up to date'}
           </p>
         </div>
       </div>

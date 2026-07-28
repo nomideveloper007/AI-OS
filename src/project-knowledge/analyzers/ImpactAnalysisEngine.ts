@@ -10,9 +10,11 @@ export class ImpactAnalysisEngine {
       .filter((c) => c.filePath === targetFilePath || c.dependencies.includes(targetFilePath))
       .map((c) => c.name);
 
-    const routesAffected: string[] = knowledge.routes
-      .filter((r) => r.filePath === targetFilePath)
-      .map((r) => r.path);
+    const routesAffected: string[] = (knowledge as any).routes
+      ? (knowledge as any).routes
+          .filter((r: any) => r.filePath === targetFilePath)
+          .map((r: any) => r.path)
+      : [];
 
     const isCore = lower.includes('core') || lower.includes('engine') || lower.includes('runtime');
     const estimatedRisk = isCore ? 'Critical' : lower.includes('config') ? 'High' : 'Low';

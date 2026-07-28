@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 
 export const MissionControlView: React.FC = () => {
-  const { websites, selectedWebsiteId, showToast } = useApp();
+  const { websites, selectedWebsiteId, selectWebsiteForDetails, setActiveTab, showToast } = useApp();
   const orchestrator = useMemo(() => MissionOrchestrator.getInstance(), []);
 
   const [missions, setMissions] = useState<Mission[]>([]);
@@ -30,6 +30,26 @@ export const MissionControlView: React.FC = () => {
 
   const website =
     websites.find((w) => w.id === selectedWebsiteId) || websites[0] || null;
+
+  if (websites.length === 0) {
+    return (
+      <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-4 max-w-lg mx-auto mt-12 text-xs">
+        <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center text-[#4F46E5] mx-auto shadow-2xs">
+          <Rocket className="w-8 h-8" />
+        </div>
+        <h2 className="text-sm font-extrabold text-slate-900">No Connected Websites</h2>
+        <p className="text-xs text-slate-500 font-medium leading-relaxed">
+          Mission Control requires an active connected website to orchestrate the AI Agent Workforce and run automated company processes.
+        </p>
+        <button
+          onClick={() => setActiveTab('websites')}
+          className="px-5 py-2.5 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white font-extrabold text-xs transition-all shadow-sm cursor-pointer"
+        >
+          Go to Websites & Connect One
+        </button>
+      </div>
+    );
+  }
 
   const refresh = useCallback(() => {
     const list = orchestrator.listMissions();
@@ -178,12 +198,20 @@ export const MissionControlView: React.FC = () => {
             <Rocket className="w-4 h-4 text-[#4F46E5]" />
             Start AI Company
           </h3>
-          <p className="text-slate-500 font-semibold">
-            Website:{" "}
-            <span className="text-slate-800">
-              {website ? `${website.name} (${website.domain})` : "None"}
-            </span>
-          </p>
+          <div>
+            <label className="font-extrabold text-slate-600 text-[10px] uppercase">Target Website</label>
+            <select
+              value={selectedWebsiteId || websites[0]?.id || ''}
+              onChange={(e) => selectWebsiteForDetails(e.target.value || null)}
+              className="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer shadow-2xs"
+            >
+              {websites.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name} ({w.domain})
+                </option>
+              ))}
+            </select>
+          </div>
           <div>
             <label className="font-extrabold text-slate-600 text-[10px] uppercase">
               Business Goal

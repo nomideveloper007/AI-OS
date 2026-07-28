@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useWorkflow } from '../hooks/useWorkflow';
+import { useApp } from '../../context/AppContext';
 import { WorkflowObject } from '../types/Workflow';
 import { WorkflowCard } from './WorkflowCard';
 import { WorkflowTimeline } from './WorkflowTimeline';
@@ -23,6 +24,7 @@ import {
 } from 'lucide-react';
 
 export const WorkflowView: React.FC = () => {
+  const { websites, selectedWebsiteId, selectWebsiteForDetails, setActiveTab: setActiveTabApp, website } = useApp();
   const { workflows, metrics, queue, approval, deleteWorkflow } = useWorkflow();
   const [selectedWorkflow, setSelectedWorkflow] = useState<WorkflowObject | null>(null);
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
@@ -35,7 +37,21 @@ export const WorkflowView: React.FC = () => {
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [triggerFilter, setTriggerFilter] = useState('all');
 
-  const filteredWorkflows = workflows.filter((wf) => {
+  const sanitizeDomain = useCallback((domainStr?: string) => {
+    if (!domainStr || domainStr === 'tasktomoney.com' || domainStr === 'ai-os.io') {
+      return website?.domain || 'No website';
+    }
+    return domainStr;
+  }, [website]);
+
+  const mappedWorkflows = useMemo(() => {
+    return workflows.map(wf => ({
+      ...wf,
+      website: sanitizeDomain(wf.website)
+    }));
+  }, [workflows, sanitizeDomain]);
+
+  const filteredWorkflows = mappedWorkflows.filter((wf) => {
     if (searchQuery && !wf.name.toLowerCase().includes(searchQuery.toLowerCase()) && !wf.description.toLowerCase().includes(searchQuery.toLowerCase())) {
       return false;
     }
@@ -46,13 +62,55 @@ export const WorkflowView: React.FC = () => {
     return true;
   });
 
-  const pendingApprovals = approval.getPendingRequests();
-  const queueItems = queue.getQueue();
+  const pendingApprovals = useMemo(() => {
+    return approval.getPendingRequests().map(req => ({
+      ...req,
+      workflow: req.workflow ? {
+        ...req.workflow,
+        website: sanitizeDomain(req.workflow.website)
+      } : undefined
+    }));
+  }, [approval, sanitizeDomain]);
+
+  const queueItems = useMemo(() => {
+    return queue.getQueue().map(item => ({
+      ...item,
+      website: sanitizeDomain(item.website),
+      workflow: item.workflow ? {
+        ...item.workflow,
+        website: sanitizeDomain(item.workflow.website)
+      } : undefined
+    }));
+  }, [queue, sanitizeDomain]);
+
+  if (websites.length === 0) {
+    return (
+      <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-4 max-w-lg mx-auto mt-12 text-xs">
+        <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center text-[#4F46E5] mx-auto shadow-2xs">
+          <WorkflowIcon className="w-8 h-8" />
+        </div>
+        <h2 className="text-sm font-extrabold text-slate-900">No Connected Websites</h2>
+        <p className="text-xs text-slate-500 font-medium leading-relaxed">
+          The Workflow Engine requires an active connected website to trigger cron jobs, orchestrate tasks, and run automation pipelines.
+        </p>
+        <button
+          onClick={() => setActiveTabApp('websites')}
+          className="px-5 py-2.5 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white font-extrabold text-xs transition-all shadow-sm cursor-pointer"
+        >
+          Go to Websites & Connect One
+        </button>
+      </div>
+    );
+  }
 
   if (selectedWorkflow) {
+    const mappedSelected = {
+      ...selectedWorkflow,
+      website: sanitizeDomain(selectedWorkflow.website)
+    };
     return (
       <WorkflowDetailsView
-        workflow={selectedWorkflow}
+        workflow={mappedSelected}
         onBack={() => setSelectedWorkflow(null)}
       />
     );
@@ -74,13 +132,26 @@ export const WorkflowView: React.FC = () => {
           </div>
         </div>
 
-        <button
-          onClick={() => setIsBuilderOpen(true)}
-          className="px-5 py-2.5 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold text-xs transition-all shadow-sm flex items-center gap-2 cursor-pointer whitespace-nowrap self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4 stroke-[2.5]" />
-          Workflow Builder
-        </button>
+        <div className="flex items-center gap-3.5 self-start sm:self-auto flex-wrap">
+          <select
+            value={selectedWebsiteId || websites[0]?.id || ''}
+            onChange={(e) => selectWebsiteForDetails(e.target.value || null)}
+            className="px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer shadow-2xs"
+          >
+            {websites.map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.domain}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={() => setIsBuilderOpen(true)}
+            className="px-5 py-2.5 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold text-xs transition-all shadow-sm flex items-center gap-2 cursor-pointer whitespace-nowrap"
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+            Workflow Builder
+          </button>
+        </div>
       </div>
 
       {/* Metrics Summary Bar */}

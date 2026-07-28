@@ -36,7 +36,8 @@ export class CEOReporter {
         requester: 'CEO Agent',
         reason: `[${t.category} - ${t.priority} Priority] ${t.reason}`,
         status: 'Pending',
-        createdTime: new Date().toISOString()
+        createdTime: new Date().toISOString(),
+        website: report.website
       });
     });
   }

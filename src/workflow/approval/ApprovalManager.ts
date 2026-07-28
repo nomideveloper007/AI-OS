@@ -25,7 +25,8 @@ export class ApprovalManager {
         requester: 'Website Auditor Agent',
         reason: 'Automated HTTPS redirect header fix requires admin sign-off.',
         status: 'Pending',
-        createdTime: new Date(Date.now() - 3600000 * 2).toISOString()
+        createdTime: new Date(Date.now() - 3600000 * 2).toISOString(),
+        website: 'barlytics.com'
       },
       {
         id: 'appr-2',
@@ -35,7 +36,8 @@ export class ApprovalManager {
         requester: 'Content Strategist Agent',
         reason: 'New SEO blog schedule ready for executive approval.',
         status: 'Pending',
-        createdTime: new Date(Date.now() - 3600000 * 5).toISOString()
+        createdTime: new Date(Date.now() - 3600000 * 5).toISOString(),
+        website: 'promptvault.online'
       }
     ];
 
