@@ -28,6 +28,7 @@ import { TaskEngine } from '../task-engine/core/TaskEngine';
 import { TaskEvents } from '../task-engine/core/TaskEvents';
 import { GitHubManager } from '../github/core/GitHubManager';
 import { ApprovalManager } from '../workflow/approval/ApprovalManager';
+import { AssistantEvents } from '../assistant/core/AssistantEvents';
 import { TaskRepository } from '../task-engine/repositories/TaskRepository';
 
 
@@ -219,6 +220,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Saira Voice Assistant tab navigation listener
+  useEffect(() => {
+    const handleNavigate = (tab: any) => {
+      setActiveTab(tab);
+    };
+    AssistantEvents.getInstance().on('navigate', handleNavigate);
+    return () => {
+      AssistantEvents.getInstance().off('navigate', handleNavigate);
+    };
   }, []);
 
   // Save websites list to local storage

@@ -94,9 +94,19 @@ export const VoiceCallOverlay: React.FC = () => {
       setIsConnecting(false);
       voiceService.startCall(selectedLang);
       
-      const greeting = selectedLang === 'ur-PK' 
-        ? 'Assalam-o-Alaikum! Saira baat kar rahi hoon. Kahiye kese madad kar sakti hoon?' 
-        : "Hello! Saira here. How is everything going with the websites today?";
+      const voices = typeof window !== 'undefined' && window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+      const hasUrdu = voices.some((v) => v.lang.toLowerCase().startsWith('ur'));
+
+      let greeting = '';
+      if (selectedLang === 'ur-PK') {
+        if (hasUrdu) {
+          greeting = 'السلام علیکم! سائرہ بات کر رہی ہوں۔ کہیے میں آپ کی کیا مدد کر سکتی ہوں؟';
+        } else {
+          greeting = 'Assalam-o-Alaikum! Saira baat kar rahi hoon. Kahiye kese madad kar sakti hoon?';
+        }
+      } else {
+        greeting = "Hello! Saira here. How is everything going with the websites today?";
+      }
       
       setTranscript([{ sender: 'saira', text: greeting }]);
       voiceService.speak(greeting, selectedLang === 'ur-PK');

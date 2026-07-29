@@ -18,12 +18,16 @@ import {
   Zap, 
   Trash2,
   Lock,
-  Code
+  Code,
+  ChevronDown
 } from 'lucide-react';
+import { MicButton } from '../../assistant/components/MicButton';
+import { useSaira } from '../../assistant/hooks/useSaira';
 
 export const AIEngineTestView: React.FC = () => {
   const { manager, logs, healthStatus, isProcessing, generateResponse, clearLogs } = useAI();
   const { messages, tokenCount, sendMessage, clearMessages } = useConversation();
+  const { voiceState, startCall } = useSaira();
 
   const [testPrompt, setTestPrompt] = useState('Analyze website architecture and summarize technical readiness for AI workforce integration.');
   const [selectedModelId, setSelectedModelId] = useState('auto/best-chat');
@@ -203,14 +207,17 @@ export const AIEngineTestView: React.FC = () => {
                     <Trash2 className="w-3.5 h-3.5" />
                     Clear Chat
                   </button>
-                  <button
-                    onClick={handleRunTest}
-                    disabled={isProcessing}
-                    className="px-4 py-1.5 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold text-xs cursor-pointer shadow-xs flex items-center gap-1.5 disabled:opacity-50"
-                  >
-                    <Play className="w-3.5 h-3.5 fill-current" />
-                    Execute Request
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <MicButton voiceState={voiceState} onClick={startCall} className="py-2 px-3" />
+                    <button
+                      onClick={handleRunTest}
+                      disabled={isProcessing}
+                      className="px-4 py-1.5 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold text-xs cursor-pointer shadow-xs flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      <Play className="w-3.5 h-3.5 fill-current" />
+                      Execute Request
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

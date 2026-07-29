@@ -3,7 +3,8 @@ import { AppProvider, useApp } from './context/AppContext';
 import { Sidebar } from './components/layout/Sidebar';
 import { TopNav } from './components/layout/TopNav';
 import { Footer } from './components/layout/Footer';
-import { VoiceCallOverlay } from './components/voice/VoiceCallOverlay';
+import { SairaAssistant } from './assistant/core/SairaAssistant';
+import { VoiceTranscript } from './assistant/components/VoiceTranscript';
 
 import { DashboardView } from './components/dashboard/DashboardView';
 import { WebsitesView } from './components/websites/WebsitesView';
@@ -39,7 +40,11 @@ import { CodeIntelligenceView } from './code-intelligence/components/CodeIntelli
 import { ProjectKnowledgeView } from './project-knowledge/components/ProjectKnowledgeView';
 
 const MainContent: React.FC = () => {
-  const { activeTab, isSidebarCollapsed } = useApp();
+  const { activeTab, isSidebarCollapsed, websites, selectedWebsiteId } = useApp();
+
+  React.useEffect(() => {
+    SairaAssistant.getInstance().updateActiveContext(websites, selectedWebsiteId);
+  }, [websites, selectedWebsiteId]);
 
   const renderActiveView = () => {
     switch (activeTab) {
@@ -119,12 +124,18 @@ const MainContent: React.FC = () => {
       <SearchModal />
       <NotificationPopover />
       <Toast />
-      <VoiceCallOverlay />
+      <VoiceTranscript />
     </div>
   );
 };
 
 export default function App() {
+  React.useEffect(() => {
+    const assistant = SairaAssistant.getInstance();
+    assistant.initialize();
+    return () => assistant.shutdown();
+  }, []);
+
   return (
     <AppProvider>
       <MainContent />

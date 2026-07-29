@@ -6,6 +6,8 @@ import { AIConfig } from '../../ai/config/AIConfig';
 import { AIChatResponse } from '../../ai/core/types';
 import { ProviderError } from '../../ai/errors/ProviderError';
 import { MarkdownMessage } from './MarkdownMessage';
+import { MicButton } from '../../assistant/components/MicButton';
+import { useSaira } from '../../assistant/hooks/useSaira';
 import {
   Zap,
   Play,
@@ -58,6 +60,7 @@ function errorLabel(code: string): string {
 export const AIPlaygroundView: React.FC = () => {
   const { generateResponse, isProcessing, lastError, healthStatus, refreshHealth } = useAI();
   const { activeSession } = useConversation();
+  const { voiceState, startCall } = useSaira();
   const configInstance = AIConfig.getInstance();
   const [config] = useState(() => configInstance.getConfig());
 
@@ -319,14 +322,17 @@ export const AIPlaygroundView: React.FC = () => {
                 Reset Prompt
               </button>
 
-              <button
-                type="submit"
-                disabled={isProcessing || !promptInput.trim()}
-                className="px-5 py-2 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold text-xs transition-all shadow-sm cursor-pointer flex items-center gap-2 disabled:opacity-50"
-              >
-                <Play className="w-4 h-4 fill-current" />
-                {isProcessing ? 'Generating…' : 'Execute Prompt'}
-              </button>
+              <div className="flex items-center gap-2">
+                <MicButton voiceState={voiceState} onClick={startCall} className="py-2.5 px-3.5" />
+                <button
+                  type="submit"
+                  disabled={isProcessing || !promptInput.trim()}
+                  className="px-5 py-2 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold text-xs transition-all shadow-sm cursor-pointer flex items-center gap-2 disabled:opacity-50"
+                >
+                  <Play className="w-4 h-4 fill-current" />
+                  {isProcessing ? 'Generating…' : 'Execute Prompt'}
+                </button>
+              </div>
             </div>
           </form>
 

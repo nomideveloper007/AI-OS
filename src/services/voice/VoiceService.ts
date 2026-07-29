@@ -8,6 +8,7 @@ export class VoiceService {
   private isMuted = false;
   private currentLanguage: 'en-US' | 'ur-PK' = 'en-US';
   private activeContext: any = null;
+  private currentAudio: HTMLAudioElement | null = null;
 
   // Callbacks
   public onWakeWordDetected: () => void = () => {};
@@ -93,10 +94,14 @@ export class VoiceService {
         
         // Query Saira AI response
         const reply = await this.getSairaReply(text, isUrdu);
-        this.onSairaReply(reply, isUrdu);
+        const parts = reply.split('|||');
+        const bubbleText = parts[0]?.trim() || reply;
+        const speechText = parts[1]?.trim() || bubbleText;
+
+        this.onSairaReply(bubbleText, isUrdu);
         
-        // Speak the reply
-        await this.speak(reply, isUrdu);
+        // Speak the reply (using translation text)
+        await this.speak(speechText, isUrdu);
 
         // Resume listening if call is still active
         if (this.isCallActive) {
@@ -159,6 +164,14 @@ export class VoiceService {
     if (this.recognition) {
       try {
         this.recognition.stop();
+      } catch {
+        // ignore
+      }
+    }
+    if (this.currentAudio) {
+      try {
+        this.currentAudio.pause();
+        this.currentAudio = null;
       } catch {
         // ignore
       }
@@ -226,7 +239,9 @@ export class VoiceService {
             timestamp: new Date().toISOString(),
             role: 'system',
             content: `You are Saira, the brilliant AI CEO Agent of the AI-OS platform. You are currently in a live phone call with the administrator.
-              - Answer in the EXACT language/script the user spoke to you (English or Urdu). If they spoke Urdu or Roman Urdu, reply in Roman Urdu (using English letters like "Haan, main theek hoon, aap bataein?") so that Speech Synthesis can speak it easily.
+              - Answer in the EXACT language/script the user spoke to you (English or Urdu).
+              - If they spoke Urdu or Roman Urdu, reply in Roman Urdu using English letters (e.g. "Main bilkul theek hoon, aap sunaein? Aaj hum promptsvault.online par kaam kar rahe hain. Kya main strategic planning start karoon?").
+              - Write Roman Urdu in the exact informal, conversational style of text messaging (using words like "salam", "kya haal hai", "kese ho", "main", "tumse", "baat", "kar", "raha", "hun", "bol", "rhi").
               - Keep your answer extremely brief, conversational, and direct (1 to 2 sentences max).
               - Be professional, action-oriented, and slightly warm.
               - Here is the live status of the workspace, answer questions using these details:
@@ -286,48 +301,126 @@ export class VoiceService {
 
   public speak(text: string, isUrdu: boolean): Promise<void> {
     return new Promise((resolve) => {
+      if (typeof window === 'undefined') {
+        resolve();
+        return;
+      }
+
+      if (this.currentAudio) {
+        try {
+          this.currentAudio.pause();
+          this.currentAudio = null;
+        } catch {
+          // ignore
+        }
+      }
+
+      // Detect if text is Urdu script
+      const isUrduScript = /[\u0600-\u06FF]/.test(text);
+      
+      // If we are in Urdu mode (either Urdu script or Roman Urdu),
+      // we speak in pure Urdu script using Google TTS to get a beautiful female Urdu voice.
+      // If the text is already Urdu script, use it. If it is Roman Urdu, we convert it to speech.
+      // Note: Saira's LLM response returns Urdu script on the right side of |||
+      // So this text will be Urdu script.
+      const tl = isUrduScript ? 'ur' : 'en';
+
+      const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(
+        text
+      )}&tl=${tl}&client=tw-ob`;
+
+      const audio = new Audio(ttsUrl);
+      this.currentAudio = audio;
+
+      audio.onplay = () => {
+        this.onSairaSpeaking(true);
+      };
+
+      audio.onended = () => {
+        this.onSairaSpeaking(false);
+        this.currentAudio = null;
+        resolve();
+      };
+
+      audio.onerror = (e) => {
+        console.error('TTS playback error, falling back:', e);
+        this.onSairaSpeaking(false);
+        this.currentAudio = null;
+        this.speakBrowserFallback(text, isUrdu).then(resolve);
+      };
+
+      audio.play().catch((err) => {
+        console.error('TTS play failed, falling back:', err);
+        this.speakBrowserFallback(text, isUrdu).then(resolve);
+      });
+    });
+  }
+
+  private speakBrowserFallback(text: string, isUrdu: boolean): Promise<void> {
+    return new Promise((resolve) => {
       if (typeof window === 'undefined' || !window.speechSynthesis) {
         resolve();
         return;
       }
 
-      window.speechSynthesis.cancel(); // Stop any previous speech
-
-      const utterance = new SpeechSynthesisUtterance(text);
-      
-      // Select appropriate language and voice
-      if (isUrdu) {
-        utterance.lang = 'ur-PK';
-      } else {
-        utterance.lang = 'en-US';
+      try {
+        window.speechSynthesis.resume();
+        window.speechSynthesis.cancel();
+      } catch {
+        // ignore
       }
 
-      // Find suitable voice if possible
-      const voices = window.speechSynthesis.getVoices();
-      if (isUrdu) {
-        // Try to find an Urdu or Hindi voice (compatible phonetics)
-        const urVoice = voices.find((v) => v.lang.startsWith('ur') || v.lang.startsWith('hi'));
-        if (urVoice) utterance.voice = urVoice;
-      } else {
-        const enVoice = voices.find((v) => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Natural')));
-        if (enVoice) utterance.voice = enVoice;
-      }
+      setTimeout(() => {
+        const utterance = new SpeechSynthesisUtterance(text);
+        const voices = window.speechSynthesis.getVoices();
 
-      utterance.onstart = () => {
-        this.onSairaSpeaking(true);
-      };
+        const isUrduScript = /[\u0600-\u06FF]/.test(text);
 
-      utterance.onend = () => {
-        this.onSairaSpeaking(false);
-        resolve();
-      };
+        if (isUrduScript) {
+          const urVoice = voices.find((v) => v.lang.toLowerCase().startsWith('ur') || v.lang.toLowerCase().includes('pk'));
+          if (urVoice) {
+            utterance.voice = urVoice;
+            utterance.lang = urVoice.lang;
+          } else {
+            utterance.lang = 'ur-PK';
+          }
+        } else if (isUrdu) {
+          const enInVoice = voices.find((v) => v.lang.toLowerCase().startsWith('en-in') || v.lang.toLowerCase().includes('india') || v.name.toLowerCase().includes('rishi'));
+          if (enInVoice) {
+            utterance.voice = enInVoice;
+            utterance.lang = enInVoice.lang;
+          } else {
+            utterance.lang = 'en-US';
+          }
+        } else {
+          const enVoice = voices.find((v) => v.lang.toLowerCase().startsWith('en') && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Samantha')));
+          if (enVoice) {
+            utterance.voice = enVoice;
+            utterance.lang = enVoice.lang;
+          } else {
+            utterance.lang = 'en-US';
+          }
+        }
 
-      utterance.onerror = () => {
-        this.onSairaSpeaking(false);
-        resolve();
-      };
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
 
-      window.speechSynthesis.speak(utterance);
+        utterance.onstart = () => {
+          this.onSairaSpeaking(true);
+        };
+
+        utterance.onend = () => {
+          this.onSairaSpeaking(false);
+          resolve();
+        };
+
+        utterance.onerror = () => {
+          this.onSairaSpeaking(false);
+          resolve();
+        };
+
+        window.speechSynthesis.speak(utterance);
+      }, 50);
     });
   }
 }
